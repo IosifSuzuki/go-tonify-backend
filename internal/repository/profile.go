@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"go-tonify-backend/internal/domain"
 )
 
@@ -10,10 +11,13 @@ type ProfileRepository interface {
 }
 
 type profileRepository struct {
+	conn *sql.DB
 }
 
-func NewProfileRepository() ProfileRepository {
-	return &profileRepository{}
+func NewProfileRepository(conn *sql.DB) ProfileRepository {
+	return &profileRepository{
+		conn: conn,
+	}
 }
 
 func (p *profileRepository) GetByID(_ context.Context, _ string) (*domain.Profile, error) {

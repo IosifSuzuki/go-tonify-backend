@@ -6,6 +6,9 @@ function main() {
   	if [ "$CMD" == "local" ]; then
 		  docker-compose -f ./docker-compose-local.yml build --no-cache
 		  docker-compose -f ./docker-compose-local.yml up -d
+		elif [ "$CMD" == "stop" ]; then
+		  docker stop tonify-server
+		  docker stop tonify-db
   	fi
 }
 
