@@ -14,10 +14,6 @@ type AuthController struct {
 	AuthService service.AuthService
 }
 
-func (a *AuthController) ClientSignIn(ctx *gin.Context) {
-	ctx.Status(http.StatusOK)
-}
-
 func (a *AuthController) ClientSignUp(ctx *gin.Context) {
 	var createClient model.CreateClient
 	if err := ctx.ShouldBindJSON(&createClient); err != nil {
