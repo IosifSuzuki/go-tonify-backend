@@ -2,12 +2,12 @@ package controller
 
 import (
 	"github.com/gin-gonic/gin"
-	"go-tonify-backend/internal/usecase"
+	"go-tonify-backend/internal/service"
 	"net/http"
 )
 
 type ProfileController struct {
-	ProfileUseCase usecase.ProfileUseCase
+	ProfileUseCase service.ProfileService
 }
 
 func (p *ProfileController) GetProfile(ctx *gin.Context) {
