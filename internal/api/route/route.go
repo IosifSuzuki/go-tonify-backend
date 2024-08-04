@@ -2,10 +2,9 @@ package route
 
 import (
 	"github.com/gin-gonic/gin"
-	"go-tonify-backend/internal/usecase"
+	"go-tonify-backend/internal/service"
 )
 
-func Setup(gin *gin.Engine, profileUseCase usecase.ProfileUseCase) {
-	NewAuthRouter(gin.Group("auth"))
-	NewProfileRouter(gin.Group("profile"), profileUseCase)
+func Setup(gin *gin.Engine, authService service.AuthService) {
+	NewAuthRouter(gin.Group("auth"), authService)
 }

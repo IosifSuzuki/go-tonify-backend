@@ -7,8 +7,9 @@ import (
 	_ "github.com/lib/pq"
 	"go-tonify-backend/internal/api/route"
 	"go-tonify-backend/internal/bootstrap"
+	"go-tonify-backend/internal/container"
 	"go-tonify-backend/internal/repository"
-	"go-tonify-backend/internal/usecase"
+	"go-tonify-backend/internal/service"
 	"log"
 )
 
@@ -19,9 +20,17 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	profileRepository := repository.NewProfileRepository(conn)
-	profileUseCase := usecase.NewProfileUseCase(profileRepository, app.ContentTimeout)
-	route.Setup(r, profileUseCase)
+	defer func() {
+		_ = conn.Close()
+	}()
+	box := container.NewContainer(app, conn)
+	clientRepository := repository.NewClientRepository(conn)
+	freelancerRepository := repository.NewFreelancerRepository(conn)
+	companyRepository := repository.NewCompanyRepository(conn)
+
+	authService := service.NewAuthService(clientRepository, companyRepository, freelancerRepository, box)
+
+	route.Setup(r, authService)
 
 	if err := r.Run(app.Address()); err != nil {
 		log.Fatalln(err)
