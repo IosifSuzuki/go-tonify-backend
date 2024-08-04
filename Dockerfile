@@ -8,7 +8,6 @@ COPY go.sum ./
 RUN go mod tidy
 
 COPY . .
-
 RUN go build -o main cmd/http/main.go
 
 FROM alpine:latest
