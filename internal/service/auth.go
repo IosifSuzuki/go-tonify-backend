@@ -17,26 +17,31 @@ import (
 
 type AuthService interface {
 	CreateClient(ctx context.Context, createClient *model.CreateClient) (*int64, error)
+	CreateFreelancer(ctx context.Context, createClient *model.CreateFreelancer) (*int64, error)
 	GenerateClientJWT(ctx context.Context, clientID int64) (*model.PairToken, error)
+	GenerateFreelancerJWT(ctx context.Context, freelancerID int64) (*model.PairToken, error)
 }
 
 type authService struct {
-	container         container.Container
-	clientRepository  repository.ClientRepository
-	companyRepository repository.CompanyRepository
-	jwt               *encrypt.JWT
+	container            container.Container
+	clientRepository     repository.ClientRepository
+	freelancerRepository repository.FreelancerRepository
+	companyRepository    repository.CompanyRepository
+	jwt                  *encrypt.JWT
 }
 
 func NewAuthService(
 	clientRepository repository.ClientRepository,
 	companyRepository repository.CompanyRepository,
+	freelancerRepository repository.FreelancerRepository,
 	container container.Container,
 ) AuthService {
 	return &authService{
-		container:         container,
-		clientRepository:  clientRepository,
-		companyRepository: companyRepository,
-		jwt:               encrypt.NewJWT(container),
+		container:            container,
+		clientRepository:     clientRepository,
+		freelancerRepository: freelancerRepository,
+		companyRepository:    companyRepository,
+		jwt:                  encrypt.NewJWT(container),
 	}
 }
 
@@ -48,13 +53,6 @@ func (a *authService) CreateClient(ctx context.Context, createClient *model.Crea
 		log.Println(err)
 		return nil, model.TelegramInitDataDecodeError
 	}
-	clientExists, err := a.clientRepository.ExistsWithID(ctx, telegramInitData.TelegramUser.ID)
-	if err != nil {
-		log.Println(err)
-		return nil, model.DataBaseOperationError
-	} else if clientExists {
-		return nil, model.ClientAlreadyExistsError
-	}
 	isValidTelegramInitData, err := validateTelegramInitData(
 		telegramInitData,
 		a.container.GetTelegramConfig().BotToken,
@@ -64,6 +62,13 @@ func (a *authService) CreateClient(ctx context.Context, createClient *model.Crea
 	} else if err != nil {
 		log.Println(err)
 		return nil, model.TelegramInitDataValidationError
+	}
+	clientExists, err := a.clientRepository.ExistsWithTelegramID(ctx, telegramInitData.TelegramUser.ID)
+	if err != nil {
+		log.Println(err)
+		return nil, model.DataBaseOperationError
+	} else if clientExists {
+		return nil, model.ClientAlreadyExistsError
 	}
 	companyEntity := domain.Company{
 		Name:        &createClient.CompanyName,
@@ -92,13 +97,79 @@ func (a *authService) CreateClient(ctx context.Context, createClient *model.Crea
 	return clientID, nil
 }
 
+func (a *authService) CreateFreelancer(ctx context.Context, createClient *model.CreateFreelancer) (*int64, error) {
+	ctx, cancel := context.WithTimeout(ctx, a.container.GetContentTimeout())
+	defer cancel()
+	telegramInitData, err := decodeTelegramInitData(createClient.TelegramRawInitData)
+	if err != nil {
+		log.Println(err)
+		return nil, model.TelegramInitDataDecodeError
+	}
+	isValidTelegramInitData, err := validateTelegramInitData(
+		telegramInitData,
+		a.container.GetTelegramConfig().BotToken,
+	)
+	if !isValidTelegramInitData {
+		return nil, model.TelegramInitDataValidationError
+	} else if err != nil {
+		log.Println(err)
+		return nil, model.TelegramInitDataValidationError
+	}
+	freelancerExists, err := a.freelancerRepository.ExistsWithTelegramID(ctx, telegramInitData.TelegramUser.ID)
+	if err != nil {
+		log.Println(err)
+		return nil, model.DataBaseOperationError
+	} else if freelancerExists {
+		return nil, model.FreelancerAlreadyExistsError
+	}
+	freelancerEntity := domain.Freelancer{
+		TelegramID: &telegramInitData.TelegramUser.ID,
+		FirstName:  &createClient.FirstName,
+		MiddleName: createClient.MiddleName,
+		LastName:   &createClient.LastName,
+		Gender:     &createClient.Gender,
+		Country:    &createClient.Country,
+		City:       &createClient.City,
+	}
+	freelancerID, err := a.freelancerRepository.Create(ctx, &freelancerEntity)
+	if err != nil {
+		log.Println(err)
+		return nil, model.DataBaseOperationError
+	}
+	return freelancerID, nil
+}
+
 func (a *authService) GenerateClientJWT(ctx context.Context, clientID int64) (*model.PairToken, error) {
 	accessClaimsToken := model.AccessClaimsToken{
 		ID:   clientID,
-		Role: "client",
+		Role: model.Client,
 	}
 	refreshClaimsToken := model.RefreshClaimsToken{
-		ID: 0,
+		ID: clientID,
+	}
+	accessToken, err := a.jwt.GenerateToken(accessClaimsToken)
+	if err != nil {
+		log.Println(err)
+		return nil, model.CreationJWTError
+	}
+	refreshToken, err := a.jwt.GenerateToken(refreshClaimsToken)
+	if err != nil {
+		log.Println(err)
+		return nil, model.CreationJWTError
+	}
+	return &model.PairToken{
+		Access:  accessToken,
+		Refresh: refreshToken,
+	}, nil
+}
+
+func (a *authService) GenerateFreelancerJWT(ctx context.Context, freelancerID int64) (*model.PairToken, error) {
+	accessClaimsToken := model.AccessClaimsToken{
+		ID:   freelancerID,
+		Role: model.Freelancer,
+	}
+	refreshClaimsToken := model.RefreshClaimsToken{
+		ID: freelancerID,
 	}
 	accessToken, err := a.jwt.GenerateToken(accessClaimsToken)
 	if err != nil {

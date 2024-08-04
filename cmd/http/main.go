@@ -25,9 +25,10 @@ func main() {
 	}()
 	box := container.NewContainer(app, conn)
 	clientRepository := repository.NewClientRepository(conn)
+	freelancerRepository := repository.NewFreelancerRepository(conn)
 	companyRepository := repository.NewCompanyRepository(conn)
 
-	authService := service.NewAuthService(clientRepository, companyRepository, box)
+	authService := service.NewAuthService(clientRepository, companyRepository, freelancerRepository, box)
 
 	route.Setup(r, authService)
 

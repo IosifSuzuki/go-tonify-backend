@@ -8,7 +8,7 @@ import (
 )
 
 type ClientRepository interface {
-	ExistsWithID(ctx context.Context, telegramID int64) (bool, error)
+	ExistsWithTelegramID(ctx context.Context, telegramID int64) (bool, error)
 	Create(ctx context.Context, client *domain.Client) (*int64, error)
 	FetchByID(ctx context.Context, id int64) (*domain.Client, error)
 }
@@ -23,7 +23,7 @@ func NewClientRepository(conn *sql.DB) ClientRepository {
 	}
 }
 
-func (c *clientRepository) ExistsWithID(ctx context.Context, telegramID int64) (bool, error) {
+func (c *clientRepository) ExistsWithTelegramID(ctx context.Context, telegramID int64) (bool, error) {
 	query := "SELECT EXISTS(SELECT 1 FROM client WHERE telegram_id=$1);"
 	var exists bool
 	err := c.conn.QueryRowContext(ctx, query, telegramID).Scan(&exists)
