@@ -32,3 +32,22 @@ func (a *AuthController) ClientSignUp(ctx *gin.Context) {
 	}
 	sendResponseWithStatus(ctx, pairToken, http.StatusCreated)
 }
+
+func (a *AuthController) FreelancerSignUp(ctx *gin.Context) {
+	var createFreelancer model.CreateFreelancer
+	if err := ctx.ShouldBindJSON(&createFreelancer); err != nil {
+		sendError(ctx, model.ParametersBadRequestError, http.StatusBadRequest)
+		return
+	}
+	freelancerID, err := a.AuthService.CreateFreelancer(context.Background(), &createFreelancer)
+	if err != nil {
+		sendError(ctx, err, http.StatusInternalServerError)
+		return
+	}
+	pairToken, err := a.AuthService.GenerateFreelancerJWT(context.Background(), *freelancerID)
+	if err != nil {
+		sendError(ctx, err, http.StatusInternalServerError)
+		return
+	}
+	sendResponseWithStatus(ctx, pairToken, http.StatusCreated)
+}

@@ -9,4 +9,5 @@ var (
 	DataBaseOperationError          = errors.New("data base operation error")
 	CreationJWTError                = errors.New("creation jwt error")
 	ClientAlreadyExistsError        = errors.New("client already exists error")
+	FreelancerAlreadyExistsError    = errors.New("freelancer already exists error")
 )
