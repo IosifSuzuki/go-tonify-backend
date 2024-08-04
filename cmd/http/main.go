@@ -26,12 +26,10 @@ func main() {
 	box := container.NewContainer(app, conn)
 	clientRepository := repository.NewClientRepository(conn)
 	companyRepository := repository.NewCompanyRepository(conn)
-	profileRepository := repository.NewProfileRepository(conn)
 
 	authService := service.NewAuthService(clientRepository, companyRepository, box)
-	profileService := service.NewProfileAuth(profileRepository, box)
 
-	route.Setup(r, authService, profileService)
+	route.Setup(r, authService)
 
 	if err := r.Run(app.Address()); err != nil {
 		log.Fatalln(err)
