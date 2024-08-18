@@ -14,61 +14,30 @@ type AuthController struct {
 	AuthService service.AuthService
 }
 
-// ClientSignUp godoc
+// AccountSignUp godoc
 //
-//	@Summary		client sign up
-//	@Description	record client to db and return pairs jwt tokens
+//	@Summary		account sign up
+//	@Description	record account to db and return pairs jwt tokens
 //	@Tags			auth
 //	@Accept			json
 //	@Produce		json
-//	@Param			request	body		model.CreateClient	true	"client payload"
+//	@Param			request	body		model.CreateAccount	true	"account payload"
 //	@Success		201		{object}	model.PairToken		"pair token"
 //	@Failure		400		"bad parameters"
 //	@Failure		500		"internal error"
-//	@Router			/auth/client/sign-up [post]
-func (a *AuthController) ClientSignUp(ctx *gin.Context) {
-	var createClient model.CreateClient
-	if err := ctx.ShouldBindJSON(&createClient); err != nil {
+//	@Router			/auth/account/sign-up [post]
+func (a *AuthController) AccountSignUp(ctx *gin.Context) {
+	var createAccount model.CreateAccount
+	if err := ctx.ShouldBindJSON(&createAccount); err != nil {
 		sendError(ctx, model.ParametersBadRequestError, http.StatusBadRequest)
 		return
 	}
-	clientID, err := a.AuthService.CreateClient(context.Background(), &createClient)
+	accountID, err := a.AuthService.CreateAccount(context.Background(), &createAccount)
 	if err != nil {
 		sendError(ctx, err, http.StatusInternalServerError)
 		return
 	}
-	pairToken, err := a.AuthService.GenerateClientJWT(context.Background(), *clientID)
-	if err != nil {
-		sendError(ctx, err, http.StatusInternalServerError)
-		return
-	}
-	sendResponseWithStatus(ctx, pairToken, http.StatusCreated)
-}
-
-// FreelancerSignUp godoc
-//
-//	@Summary		freelancer sign up
-//	@Description	record freelancer to db and return pairs jwt tokens
-//	@Tags			auth
-//	@Accept			json
-//	@Produce		json
-//	@Param			request	body		model.CreateFreelancer	true	"freelancer payload"
-//	@Success		201		{object}	model.PairToken			"pair token"
-//	@Failure		400		"bad parameters"
-//	@Failure		500		"internal error"
-//	@Router			/auth/freelancer/sign-up [post]
-func (a *AuthController) FreelancerSignUp(ctx *gin.Context) {
-	var createFreelancer model.CreateFreelancer
-	if err := ctx.ShouldBindJSON(&createFreelancer); err != nil {
-		sendError(ctx, model.ParametersBadRequestError, http.StatusBadRequest)
-		return
-	}
-	freelancerID, err := a.AuthService.CreateFreelancer(context.Background(), &createFreelancer)
-	if err != nil {
-		sendError(ctx, err, http.StatusInternalServerError)
-		return
-	}
-	pairToken, err := a.AuthService.GenerateFreelancerJWT(context.Background(), *freelancerID)
+	pairToken, err := a.AuthService.GenerateAccountJWT(context.Background(), *accountID)
 	if err != nil {
 		sendError(ctx, err, http.StatusInternalServerError)
 		return

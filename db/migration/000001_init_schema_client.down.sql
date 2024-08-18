@@ -1,4 +1,0 @@
-ALTER TABLE client DROP CONSTRAINT IF EXISTS fk_company_id;
-
-DROP TABLE IF EXISTS client;
-DROP TABLE IF EXISTS company;

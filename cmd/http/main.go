@@ -29,8 +29,8 @@ import (
 //	@host		localhost:8080
 //	@BasePath	/
 
-//	@externalDocs.description	OpenAPI
-//	@externalDocs.url			https://swagger.io/resources/open-api/
+// @externalDocs.description	OpenAPI
+// @externalDocs.url			https://swagger.io/resources/open-api/
 func main() {
 	app := bootstrap.App()
 	r := gin.Default()
@@ -42,11 +42,10 @@ func main() {
 		_ = conn.Close()
 	}()
 	box := container.NewContainer(app, conn)
-	clientRepository := repository.NewClientRepository(conn)
-	freelancerRepository := repository.NewFreelancerRepository(conn)
+	accountRepository := repository.NewAccountRepository(conn)
 	companyRepository := repository.NewCompanyRepository(conn)
 
-	authService := service.NewAuthService(clientRepository, companyRepository, freelancerRepository, box)
+	authService := service.NewAuthService(box, accountRepository, companyRepository)
 
 	route.Setup(r, authService)
 

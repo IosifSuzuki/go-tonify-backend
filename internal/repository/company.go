@@ -40,5 +40,6 @@ func (c *companyRepository) FetchByID(ctx context.Context, id int64) (*domain.Co
 	row := c.conn.QueryRowContext(ctx, "SELECT name, description FROM company WHERE id = $1", id)
 	var company domain.Company
 	err := row.Scan(company.Name, company.Description)
+	company.ID = &id
 	return &company, err
 }

@@ -1,12 +1,14 @@
-CREATE TABLE IF NOT EXISTS client (
+CREATE TABLE IF NOT EXISTS account (
     id SERIAL PRIMARY KEY,
     telegram_id TEXT UNIQUE,
     first_name TEXT,
     middle_name TEXT,
     last_name TEXT,
+    nickname TEXT,
+    about_me TEXT,
     gender VARCHAR(127),
     country TEXT,
-    city TEXT,
+    location TEXT,
     avatar_path TEXT,
     document_path TEXT,
     company_id INT,
@@ -24,9 +26,8 @@ CREATE TABLE IF NOT EXISTS company (
     deleted_at TIMESTAMP
 );
 
-ALTER TABLE client
+ALTER TABLE account
     ADD CONSTRAINT fk_company_id
     FOREIGN KEY(company_id)
     REFERENCES company(id)
     ON DELETE SET NULL;
-
