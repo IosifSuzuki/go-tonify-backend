@@ -18,3 +18,22 @@ type Account struct {
 	UpdatedAt  *time.Time
 	DeletedAt  *time.Time
 }
+
+func NewAccount() *Account {
+	return &Account{
+		ID:         new(int64),
+		TelegramID: new(int64),
+		FirstName:  new(string),
+		MiddleName: new(string),
+		LastName:   new(string),
+		Nickname:   new(string),
+		AboutMe:    new(string),
+		Gender:     new(string),
+		Country:    new(string),
+		Location:   new(string),
+		CompanyID:  new(int64),
+		CreatedAt:  new(time.Time),
+		UpdatedAt:  new(time.Time),
+		DeletedAt:  new(time.Time),
+	}
+}

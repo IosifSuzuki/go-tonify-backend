@@ -9,4 +9,5 @@ var (
 	DataBaseOperationError          = errors.New("data base operation error")
 	CreationJWTError                = errors.New("creation jwt error")
 	AccountAlreadyExistsError       = errors.New("account already exists error")
+	AccountNotExistsError           = errors.New("account isn't exist in system")
 )

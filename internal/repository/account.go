@@ -11,6 +11,7 @@ type AccountRepository interface {
 	ExistsWithTelegramID(ctx context.Context, telegramID int64) (bool, error)
 	Create(ctx context.Context, account *domain.Account) (*int64, error)
 	FetchByID(ctx context.Context, id int64) (*domain.Account, error)
+	FetchByTelegramID(ctx context.Context, telegramID int64) (*domain.Account, error)
 }
 
 type accountRepository struct {
@@ -55,24 +56,50 @@ func (a *accountRepository) Create(ctx context.Context, account *domain.Account)
 }
 
 func (a *accountRepository) FetchByID(ctx context.Context, id int64) (*domain.Account, error) {
-	query := "SELECT telegram_id, first_name, middle_name, last_name, nickname, about_me, gender, country, location, company_id, created_at, updated_at, deleted_at FROM account WHERE id = $1"
+	query := "SELECT telegram_id, first_name, middle_name, last_name, nickname, about_me, gender, country, location, company_id FROM account WHERE id = $1"
 	row := a.conn.QueryRowContext(ctx, query, id)
-	var account domain.Account
-	account.ID = &id
+	var middleName sql.NullString
+	var aboutMe sql.NullString
+	var nickname sql.NullString
+	var companyID sql.NullInt64
+	account := domain.NewAccount()
 	err := row.Scan(
 		account.TelegramID,
 		account.FirstName,
-		account.MiddleName,
+		&middleName,
 		account.LastName,
-		account.Nickname,
-		account.AboutMe,
+		&nickname,
+		&aboutMe,
 		account.Gender,
 		account.Country,
 		account.Location,
-		account.CompanyID,
-		account.CreatedAt,
-		account.UpdatedAt,
-		account.DeletedAt,
+		&companyID,
 	)
-	return &account, err
+	account.ID = &id
+	return account, err
+}
+
+func (a *accountRepository) FetchByTelegramID(ctx context.Context, telegramID int64) (*domain.Account, error) {
+	query := "SELECT id, first_name, middle_name, last_name, nickname, about_me, gender, country, location, company_id, created_at FROM account WHERE telegram_id = $1"
+	row := a.conn.QueryRowContext(ctx, query, telegramID)
+	var middleName sql.NullString
+	var nickname sql.NullString
+	var aboutMe sql.NullString
+	var companyID sql.NullInt64
+	account := domain.NewAccount()
+	err := row.Scan(
+		account.ID,
+		account.FirstName,
+		&middleName,
+		account.LastName,
+		&nickname,
+		&aboutMe,
+		account.Gender,
+		account.Country,
+		account.Location,
+		&companyID,
+		account.CreatedAt,
+	)
+	account.TelegramID = &telegramID
+	return account, err
 }

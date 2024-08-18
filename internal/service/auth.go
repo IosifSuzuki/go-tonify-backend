@@ -17,6 +17,7 @@ import (
 
 type AuthService interface {
 	CreateAccount(ctx context.Context, createAccount *model.CreateAccount) (*int64, error)
+	AuthorizationAccount(ctx context.Context, credential *model.Credential) (*model.Account, error)
 	GenerateAccountJWT(ctx context.Context, accountID int64) (*model.PairToken, error)
 }
 
@@ -118,6 +119,51 @@ func (a *authService) GenerateAccountJWT(ctx context.Context, accountID int64) (
 	return &model.PairToken{
 		Access:  accessToken,
 		Refresh: refreshToken,
+	}, nil
+}
+
+func (a *authService) AuthorizationAccount(ctx context.Context, credential *model.Credential) (*model.Account, error) {
+	ctx, cancel := context.WithTimeout(ctx, a.container.GetContentTimeout())
+	defer cancel()
+	telegramInitData, err := decodeTelegramInitData(credential.TelegramRawInitData)
+	if err != nil {
+		log.Println(err)
+		return nil, model.TelegramInitDataDecodeError
+	}
+	isValidTelegramInitData, err := validateTelegramInitData(
+		telegramInitData,
+		a.container.GetTelegramConfig().BotToken,
+	)
+	if !isValidTelegramInitData {
+		return nil, model.TelegramInitDataValidationError
+	} else if err != nil {
+		log.Println(err)
+		return nil, model.TelegramInitDataValidationError
+	}
+	accountExists, err := a.accountRepository.ExistsWithTelegramID(ctx, telegramInitData.TelegramUser.ID)
+	if !accountExists {
+		return nil, model.AccountNotExistsError
+	} else if err != nil {
+		log.Println(err)
+		return nil, model.DataBaseOperationError
+	}
+	account, err := a.accountRepository.FetchByTelegramID(ctx, telegramInitData.TelegramUser.ID)
+	if err != nil {
+		log.Println(err)
+		return nil, model.DataBaseOperationError
+	}
+	return &model.Account{
+		ID:         account.ID,
+		TelegramID: account.TelegramID,
+		FirstName:  *account.FirstName,
+		MiddleName: account.MiddleName,
+		LastName:   *account.LastName,
+		Nickname:   account.Nickname,
+		AboutMe:    account.AboutMe,
+		Gender:     model.NewGender(*account.Gender),
+		Country:    account.Country,
+		Location:   account.Location,
+		CompanyID:  account.CompanyID,
 	}, nil
 }
 

@@ -7,7 +7,7 @@ type CreateAccount struct {
 	LastName            string  `json:"last_name" validate:"required"`
 	Nickname            *string `json:"nickname" validate:"optional"`
 	AboutMe             *string `json:"about_me" validate:"optional"`
-	Gender              Gender  `json:"gender" enums:"male,female" validate:"required"`
+	Gender              Gender  `json:"gender" enums:"male,female,unknown" validate:"required"`
 	Country             string  `json:"country" validate:"required"`
 	Location            string  `json:"location" validate:"required"`
 	CompanyName         *string `json:"company_name" validate:"optional"`

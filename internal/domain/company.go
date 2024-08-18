@@ -5,3 +5,11 @@ type Company struct {
 	Name        *string
 	Description *string
 }
+
+func NewCompany() *Company {
+	return &Company{
+		ID:          new(int64),
+		Name:        new(string),
+		Description: new(string),
+	}
+}
