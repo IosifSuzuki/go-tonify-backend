@@ -44,10 +44,11 @@ func main() {
 	box := container.NewContainer(app, conn)
 	accountRepository := repository.NewAccountRepository(conn)
 	companyRepository := repository.NewCompanyRepository(conn)
+	countryRepository := repository.NewCountryRepository()
 
 	authService := service.NewAuthService(box, accountRepository, companyRepository)
 
-	route.Setup(r, authService)
+	route.Setup(r, box, authService, countryRepository)
 
 	if err := r.Run(app.Address()); err != nil {
 		log.Fatalln(err)
