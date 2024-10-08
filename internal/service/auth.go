@@ -19,6 +19,8 @@ type AuthService interface {
 	CreateAccount(ctx context.Context, createAccount *model.CreateAccount) (*int64, error)
 	AuthorizationAccount(ctx context.Context, credential *model.Credential) (*model.Account, error)
 	GenerateAccountJWT(ctx context.Context, accountID int64) (*model.PairToken, error)
+	ParseAccessAccountJWT(token string) (*model.AccessClaimsToken, error)
+	ParseRefreshAccountJWT(token string) (*model.RefreshClaimsToken, error)
 }
 
 type authService struct {
@@ -120,6 +122,14 @@ func (a *authService) GenerateAccountJWT(ctx context.Context, accountID int64) (
 		Access:  accessToken,
 		Refresh: refreshToken,
 	}, nil
+}
+
+func (a *authService) ParseAccessAccountJWT(token string) (*model.AccessClaimsToken, error) {
+	return a.jwt.ParseAccessToken(token)
+}
+
+func (a *authService) ParseRefreshAccountJWT(token string) (*model.RefreshClaimsToken, error) {
+	return a.jwt.ParseRefreshToken(token)
 }
 
 func (a *authService) AuthorizationAccount(ctx context.Context, credential *model.Credential) (*model.Account, error) {

@@ -3,8 +3,8 @@ package model
 type Gender string
 
 var (
-	Male    Gender
-	Female  Gender
+	Male    Gender = "mela"
+	Female  Gender = "female"
 	Unknown Gender
 )
 

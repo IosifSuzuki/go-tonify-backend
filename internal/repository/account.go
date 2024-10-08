@@ -12,6 +12,7 @@ type AccountRepository interface {
 	Create(ctx context.Context, account *domain.Account) (*int64, error)
 	FetchByID(ctx context.Context, id int64) (*domain.Account, error)
 	FetchByTelegramID(ctx context.Context, telegramID int64) (*domain.Account, error)
+	UpdateAccount(ctx context.Context, id int64, account *domain.Account) error
 }
 
 type accountRepository struct {
@@ -102,4 +103,24 @@ func (a *accountRepository) FetchByTelegramID(ctx context.Context, telegramID in
 	)
 	account.TelegramID = &telegramID
 	return account, err
+}
+
+func (a *accountRepository) UpdateAccount(ctx context.Context, id int64, account *domain.Account) error {
+	query := "UPDATE account SET first_name = $1, middle_name = $2, last_name = $3, nickname = $4, about_me = $5, gender = $6, " +
+		"country = $7, location = $8, updated_at = $9 WHERE id = $10"
+	_, err := a.conn.ExecContext(
+		ctx,
+		query,
+		account.FirstName,
+		account.MiddleName,
+		account.LastName,
+		account.Nickname,
+		account.AboutMe,
+		account.Gender,
+		account.Country,
+		account.Location,
+		account.UpdatedAt,
+		account.ID,
+	)
+	return err
 }

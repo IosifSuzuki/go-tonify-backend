@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	_ "github.com/lib/pq"
 	_ "go-tonify-backend/docs"
+	"go-tonify-backend/internal/api/middleware"
 	"go-tonify-backend/internal/api/route"
 	"go-tonify-backend/internal/bootstrap"
 	"go-tonify-backend/internal/container"
@@ -34,6 +35,7 @@ import (
 func main() {
 	app := bootstrap.App()
 	r := gin.Default()
+
 	conn, err := openConnectionToDB(app.DBConfig)
 	if err != nil {
 		log.Fatalln(err)
@@ -47,8 +49,9 @@ func main() {
 	countryRepository := repository.NewCountryRepository()
 
 	authService := service.NewAuthService(box, accountRepository, companyRepository)
+	authMiddleware := middleware.NewAuth(box, authService)
 
-	route.Setup(r, box, authService, countryRepository)
+	route.Setup(r, box, authService, authMiddleware, accountRepository, countryRepository)
 
 	if err := r.Run(app.Address()); err != nil {
 		log.Fatalln(err)
