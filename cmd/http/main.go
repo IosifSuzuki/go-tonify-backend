@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	_ "github.com/lib/pq"
 	_ "go-tonify-backend/docs"
+	"go-tonify-backend/internal/api/middleware"
 	"go-tonify-backend/internal/api/route"
 	"go-tonify-backend/internal/bootstrap"
 	"go-tonify-backend/internal/container"
@@ -29,11 +30,12 @@ import (
 //	@host		localhost:8080
 //	@BasePath	/
 
-//	@externalDocs.description	OpenAPI
-//	@externalDocs.url			https://swagger.io/resources/open-api/
+// @externalDocs.description	OpenAPI
+// @externalDocs.url			https://swagger.io/resources/open-api/
 func main() {
 	app := bootstrap.App()
 	r := gin.Default()
+
 	conn, err := openConnectionToDB(app.DBConfig)
 	if err != nil {
 		log.Fatalln(err)
@@ -42,13 +44,14 @@ func main() {
 		_ = conn.Close()
 	}()
 	box := container.NewContainer(app, conn)
-	clientRepository := repository.NewClientRepository(conn)
-	freelancerRepository := repository.NewFreelancerRepository(conn)
+	accountRepository := repository.NewAccountRepository(conn)
 	companyRepository := repository.NewCompanyRepository(conn)
+	countryRepository := repository.NewCountryRepository()
 
-	authService := service.NewAuthService(clientRepository, companyRepository, freelancerRepository, box)
+	authService := service.NewAuthService(box, accountRepository, companyRepository)
+	authMiddleware := middleware.NewAuth(box, authService)
 
-	route.Setup(r, authService)
+	route.Setup(r, box, authService, authMiddleware, accountRepository, countryRepository)
 
 	if err := r.Run(app.Address()); err != nil {
 		log.Fatalln(err)

@@ -1,8 +1,8 @@
 package model
 
-type Role string
+type Role uint
 
-var (
-	Client     Role = "client"
-	Freelancer Role = "freelancer"
+const (
+	Client Role = iota + 1
+	Freelance
 )

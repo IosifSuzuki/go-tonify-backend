@@ -9,6 +9,6 @@ import (
 func NewAuthRouter(group *gin.RouterGroup, authService service.AuthService) {
 	ac := &controller.AuthController{AuthService: authService}
 
-	group.POST("/client/sign-up", ac.ClientSignUp)
-	group.POST("/freelancer/sign-up", ac.FreelancerSignUp)
+	group.POST("/sign-up", ac.AccountSignUp)
+	group.POST("/sign-in", ac.AccountSignIn)
 }
