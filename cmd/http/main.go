@@ -12,6 +12,7 @@ import (
 	"go-tonify-backend/internal/container"
 	"go-tonify-backend/internal/repository"
 	"go-tonify-backend/internal/service"
+	"go-tonify-backend/pkg/logger"
 	"log"
 )
 
@@ -43,15 +44,17 @@ func main() {
 	defer func() {
 		_ = conn.Close()
 	}()
-	box := container.NewContainer(app, conn)
+	l := logger.NewLogger(logger.DEV, logger.LevelDebug)
+	box := container.NewContainer(l, app, conn)
 	accountRepository := repository.NewAccountRepository(conn)
 	companyRepository := repository.NewCompanyRepository(conn)
 	countryRepository := repository.NewCountryRepository()
 
 	authService := service.NewAuthService(box, accountRepository, companyRepository)
 	authMiddleware := middleware.NewAuth(box, authService)
+	loggerMiddleware := middleware.NewLogger(box)
 
-	route.Setup(r, box, authService, authMiddleware, accountRepository, countryRepository)
+	route.Setup(r, box, authService, authMiddleware, loggerMiddleware, accountRepository, countryRepository)
 
 	if err := r.Run(app.Address()); err != nil {
 		log.Fatalln(err)
