@@ -99,7 +99,7 @@ func (p *Account) EditMyAccount(ctx *gin.Context) {
 		Country:    &editAccount.Country,
 		Location:   &editAccount.Location,
 	}
-	if err := p.accountRepository.UpdateAccount(ctx, accessClaimsToken.ID, &domainAccount); err != nil {
+	if err := p.accountRepository.UpdateAccount(ctx, &domainAccount); err != nil {
 		sendError(ctx, err, http.StatusInternalServerError)
 		return
 	}

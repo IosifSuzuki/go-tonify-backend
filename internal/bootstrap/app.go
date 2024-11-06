@@ -10,6 +10,8 @@ import (
 type Application struct {
 	ServerAddr          string
 	ServerPort          string
+	SecureServerAddr    string
+	SecureServerPort    string
 	ContentTimeout      time.Duration // in sec
 	DBConfig            DBConfig
 	TelegramConfig      TelegramConfig
@@ -35,6 +37,8 @@ func App() Application {
 	app := Application{}
 	app.ServerAddr = os.Getenv("SERVER_HOST")
 	app.ServerPort = os.Getenv("SERVER_PORT")
+	app.SecureServerAddr = os.Getenv("SECURE_SERVER_HOST")
+	app.SecureServerPort = os.Getenv("SECURE_SERVER_PORT")
 	if contextTimeout, err := strconv.Atoi(os.Getenv("CONTEXT_TIMEOUT")); err == nil {
 		app.ContentTimeout = time.Duration(contextTimeout) * time.Second
 	} else {
@@ -70,4 +74,8 @@ func App() Application {
 
 func (s *Application) Address() string {
 	return net.JoinHostPort(s.ServerAddr, s.ServerPort)
+}
+
+func (s *Application) SecureAddress() string {
+	return net.JoinHostPort(s.SecureServerAddr, s.SecureServerPort)
 }

@@ -13,6 +13,7 @@ services:
       - my_network
     ports:
       - "${SERVER_PORT}:${SERVER_PORT}"
+      - "${SECURE_SERVER_PORT}:${SECURE_SERVER_PORT}"
     depends_on:
       - database
   database:

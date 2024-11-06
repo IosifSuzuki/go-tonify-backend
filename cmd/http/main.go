@@ -55,8 +55,12 @@ func main() {
 	loggerMiddleware := middleware.NewLogger(box)
 
 	route.Setup(r, box, authService, authMiddleware, loggerMiddleware, accountRepository, countryRepository)
-
-	if err := r.Run(app.Address()); err != nil {
+	go func() {
+		if err := r.Run(app.Address()); err != nil {
+			log.Fatalln(err)
+		}
+	}()
+	if err := r.RunTLS(app.SecureAddress(), "tls/public.pem", "tls/private.key"); err != nil {
 		log.Fatalln(err)
 	}
 }
