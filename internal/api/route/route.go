@@ -15,10 +15,12 @@ func Setup(
 	container container.Container,
 	authService service.AuthService,
 	authMiddleware *middleware.Auth,
+	corsMiddleware *middleware.CORS,
 	loggerMiddleware *middleware.Logger,
 	accountRepository repository.AccountRepository,
 	countryRepository repository.CountryRepository,
 ) {
+	gin.Use(corsMiddleware.CORS())
 	gin.Use(loggerMiddleware.Logging())
 	NewAuthRouter(gin.Group("auth"), authService)
 	NewCommonRouter(gin.Group("common"), container, countryRepository)
