@@ -53,8 +53,9 @@ func main() {
 	authService := service.NewAuthService(box, accountRepository, companyRepository)
 	authMiddleware := middleware.NewAuth(box, authService)
 	loggerMiddleware := middleware.NewLogger(box)
+	corsMiddleware := middleware.NewCORS(box)
 
-	route.Setup(r, box, authService, authMiddleware, loggerMiddleware, accountRepository, countryRepository)
+	route.Setup(r, box, authService, authMiddleware, corsMiddleware, loggerMiddleware, accountRepository, countryRepository)
 	go func() {
 		if err := r.Run(app.Address()); err != nil {
 			log.Fatalln(err)
