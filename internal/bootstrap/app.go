@@ -15,6 +15,7 @@ type Application struct {
 	ContentTimeout      time.Duration // in sec
 	DBConfig            DBConfig
 	TelegramConfig      TelegramConfig
+	S3Config            S3Config
 	JWTSecretKey        string
 	AccessJWTExpiresIn  time.Duration // in sec
 	RefreshJWTExpiresIn time.Duration // in sec
@@ -31,6 +32,10 @@ type DBConfig struct {
 
 type TelegramConfig struct {
 	BotToken string
+}
+
+type S3Config struct {
+	AttachmentBucket string
 }
 
 func App() Application {
@@ -68,6 +73,8 @@ func App() Application {
 	app.DBConfig.Mode = os.Getenv("DB_MODE")
 
 	app.TelegramConfig.BotToken = os.Getenv("TELEGRAM_BOT_TOKEN")
+
+	app.S3Config.AttachmentBucket = os.Getenv("S3_ATTACHMENT_BUCKET")
 
 	return app
 }

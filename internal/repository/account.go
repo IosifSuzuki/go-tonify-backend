@@ -33,7 +33,7 @@ func (a *accountRepository) ExistsWithTelegramID(ctx context.Context, telegramID
 }
 
 func (a *accountRepository) Create(ctx context.Context, account *domain.Account) (*int64, error) {
-	query := "INSERT INTO account (telegram_id, first_name, middle_name, last_name, nickname, about_me, gender, country, location, company_id, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id;"
+	query := "INSERT INTO account (telegram_id, first_name, middle_name, last_name, nickname, about_me, gender, country, location, avatar_path, document_path, company_id, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id;"
 	var id int64
 	err := a.conn.QueryRowContext(
 		ctx,
@@ -47,6 +47,8 @@ func (a *accountRepository) Create(ctx context.Context, account *domain.Account)
 		account.Gender,
 		account.Country,
 		account.Location,
+		account.AvatarPath,
+		account.DocumentPath,
 		account.CompanyID,
 		time.Now(),
 	).Scan(&id)
@@ -57,7 +59,7 @@ func (a *accountRepository) Create(ctx context.Context, account *domain.Account)
 }
 
 func (a *accountRepository) FetchByID(ctx context.Context, id int64) (*domain.Account, error) {
-	query := "SELECT telegram_id, first_name, middle_name, last_name, nickname, about_me, gender, country, location, company_id FROM account WHERE id = $1"
+	query := "SELECT telegram_id, first_name, middle_name, last_name, nickname, about_me, gender, country, location, avatar_path, document_path, company_id FROM account WHERE id = $1"
 	row := a.conn.QueryRowContext(ctx, query, id)
 	var middleName sql.NullString
 	var aboutMe sql.NullString
@@ -74,14 +76,28 @@ func (a *accountRepository) FetchByID(ctx context.Context, id int64) (*domain.Ac
 		account.Gender,
 		account.Country,
 		account.Location,
+		account.AvatarPath,
+		account.DocumentPath,
 		&companyID,
 	)
+	if middleName.Valid {
+		account.MiddleName = &middleName.String
+	}
+	if aboutMe.Valid {
+		account.AboutMe = &aboutMe.String
+	}
+	if nickname.Valid {
+		account.Nickname = &nickname.String
+	}
+	if companyID.Valid {
+		account.CompanyID = &companyID.Int64
+	}
 	account.ID = &id
 	return account, err
 }
 
 func (a *accountRepository) FetchByTelegramID(ctx context.Context, telegramID int64) (*domain.Account, error) {
-	query := "SELECT id, first_name, middle_name, last_name, nickname, about_me, gender, country, location, company_id, created_at FROM account WHERE telegram_id = $1"
+	query := "SELECT id, first_name, middle_name, last_name, nickname, about_me, gender, country, location, avatar_path, document_path, company_id, created_at FROM account WHERE telegram_id = $1"
 	row := a.conn.QueryRowContext(ctx, query, telegramID)
 	var middleName sql.NullString
 	var nickname sql.NullString
@@ -98,6 +114,8 @@ func (a *accountRepository) FetchByTelegramID(ctx context.Context, telegramID in
 		account.Gender,
 		account.Country,
 		account.Location,
+		account.AvatarPath,
+		account.DocumentPath,
 		&companyID,
 		account.CreatedAt,
 	)

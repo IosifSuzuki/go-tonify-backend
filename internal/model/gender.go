@@ -3,9 +3,9 @@ package model
 type Gender string
 
 var (
-	Male    Gender = "mela"
+	Male    Gender = "male"
 	Female  Gender = "female"
-	Unknown Gender
+	Unknown Gender = "unknown"
 )
 
 func (g Gender) String() string {

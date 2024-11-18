@@ -51,11 +51,12 @@ func main() {
 	countryRepository := repository.NewCountryRepository()
 
 	authService := service.NewAuthService(box, accountRepository, companyRepository)
+	attachmentService := service.NewAttachmentService(box)
 	authMiddleware := middleware.NewAuth(box, authService)
 	loggerMiddleware := middleware.NewLogger(box)
 	corsMiddleware := middleware.NewCORS(box)
 
-	route.Setup(r, box, authService, authMiddleware, corsMiddleware, loggerMiddleware, accountRepository, countryRepository)
+	route.Setup(r, box, authService, attachmentService, authMiddleware, corsMiddleware, loggerMiddleware, accountRepository, companyRepository, countryRepository)
 	go func() {
 		if err := r.Run(app.Address()); err != nil {
 			log.Fatalln(err)

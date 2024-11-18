@@ -46,17 +46,19 @@ func (p *Account) GetMyAccount(ctx *gin.Context) {
 		return
 	}
 	account := model.Account{
-		ID:         domainAccount.ID,
-		TelegramID: domainAccount.TelegramID,
-		FirstName:  *domainAccount.FirstName,
-		MiddleName: domainAccount.MiddleName,
-		LastName:   *domainAccount.LastName,
-		Nickname:   domainAccount.Nickname,
-		AboutMe:    domainAccount.AboutMe,
-		Gender:     model.NewGender(*domainAccount.Gender),
-		Country:    domainAccount.Country,
-		Location:   domainAccount.Location,
-		CompanyID:  domainAccount.CompanyID,
+		ID:          domainAccount.ID,
+		TelegramID:  domainAccount.TelegramID,
+		FirstName:   *domainAccount.FirstName,
+		MiddleName:  domainAccount.MiddleName,
+		LastName:    *domainAccount.LastName,
+		Nickname:    domainAccount.Nickname,
+		AboutMe:     domainAccount.AboutMe,
+		Gender:      model.NewGender(*domainAccount.Gender),
+		Country:     domainAccount.Country,
+		Location:    domainAccount.Location,
+		CompanyID:   domainAccount.CompanyID,
+		AvatarURL:   domainAccount.AvatarPath,
+		DocumentURL: domainAccount.DocumentPath,
 	}
 	sendResponse(ctx, account)
 }

@@ -10,6 +10,7 @@ import (
 type Container interface {
 	GetLogger() logger.Logger
 	GetTelegramConfig() bootstrap.TelegramConfig
+	GetS3Config() bootstrap.S3Config
 	GetContentTimeout() time.Duration
 	GetDBConnection() *sql.DB
 	GetJWTSecretKey() string
@@ -56,4 +57,8 @@ func (c *container) GetRefreshJWTExpiresIn() time.Duration {
 
 func (c *container) GetLogger() logger.Logger {
 	return c.logger
+}
+
+func (c *container) GetS3Config() bootstrap.S3Config {
+	return c.config.S3Config
 }
