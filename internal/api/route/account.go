@@ -22,4 +22,5 @@ func NewAccountRouter(
 	account := controller.NewAccount(container, accountRepository, attachmentRepository, companyRepository, attachmentService)
 	group.GET("/my", account.GetMyAccount)
 	group.PATCH("/edit", account.EditMyAccount)
+	group.GET("/matching", account.MatchAccounts)
 }

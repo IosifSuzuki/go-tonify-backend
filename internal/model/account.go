@@ -7,7 +7,7 @@ type Account struct {
 	MiddleName         *string `json:"middle_name"`
 	LastName           string  `json:"last_name"`
 	Nickname           *string `json:"nickname"`
-	Role               string  `json:"role"`
+	Role               Role    `json:"role"`
 	AboutMe            *string `json:"about_me"`
 	Gender             Gender  `json:"gender"`
 	Country            *string `json:"country"`

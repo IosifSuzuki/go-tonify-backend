@@ -157,7 +157,7 @@ func (a *authService) AuthorizationAccount(ctx context.Context, credential *mode
 		MiddleName: account.MiddleName,
 		LastName:   account.LastName,
 		Nickname:   account.Nickname,
-		Role:       account.Role,
+		Role:       model.Role(account.Role),
 		AboutMe:    account.AboutMe,
 		Gender:     model.NewGender(account.Gender),
 		Country:    account.Country,

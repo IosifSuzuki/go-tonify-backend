@@ -86,7 +86,7 @@ func (p *Account) GetMyAccount(ctx *gin.Context) {
 		MiddleName:         accountDomain.MiddleName,
 		LastName:           accountDomain.LastName,
 		Nickname:           accountDomain.Nickname,
-		Role:               accountDomain.Role,
+		Role:               model.Role(accountDomain.Role),
 		AboutMe:            accountDomain.AboutMe,
 		Gender:             model.NewGender(accountDomain.Gender),
 		Country:            accountDomain.Country,
@@ -288,7 +288,7 @@ func (p *Account) EditMyAccount(ctx *gin.Context) {
 		MiddleName:         updatedDomainAccount.MiddleName,
 		LastName:           updatedDomainAccount.LastName,
 		Nickname:           updatedDomainAccount.Nickname,
-		Role:               updatedDomainAccount.Role,
+		Role:               model.Role(updatedDomainAccount.Role),
 		AboutMe:            updatedDomainAccount.AboutMe,
 		Gender:             model.NewGender(updatedDomainAccount.Gender),
 		Country:            updatedDomainAccount.Country,
@@ -300,4 +300,100 @@ func (p *Account) EditMyAccount(ctx *gin.Context) {
 		DocumentURL:        documentRemoteURL,
 	}
 	sendResponse(ctx, account)
+}
+
+// MatchAccounts godoc
+//
+//	@Summary		match accounts
+//	@Description	get accounts by matching
+//	@Tags			profile
+//	@Param			request	body	model.MatchAccountRequest	true	"match account"
+//	@Produce		json
+//	@Success		200	{array}	model.Account
+//	@Failure		500	"internal error"
+//	@Failure		401	"invalid access token provided"
+//	@Router			/account/matching [get]
+//	@Security		ApiKeyAuth
+func (p *Account) MatchAccounts(ctx *gin.Context) {
+	log := p.container.GetLogger()
+	var matchAccountRequest model.MatchAccountRequest
+	if err := ctx.ShouldBindJSON(&matchAccountRequest); err != nil {
+		log.Error("fail to bind a request")
+		sendError(ctx, model.ParametersBadRequestError, http.StatusBadRequest)
+		return
+	}
+	authToken, exist := ctx.Get(model.AuthorizationTokenKey)
+	if !exist {
+		err := model.MissedAuthorizationTokenError
+		sendError(ctx, err, http.StatusUnauthorized)
+		return
+	}
+	accessClaimsToken := authToken.(*model.AccessClaimsToken)
+	myAccountDomain, err := p.accountRepository.FetchByID(ctx, accessClaimsToken.ID)
+	if err != nil {
+		log.Error("fail to get account by id", logger.FError(err))
+		sendError(ctx, err, http.StatusUnauthorized)
+		return
+	}
+	accountDomains, err := p.accountRepository.GetMatchedAccounts(ctx, myAccountDomain.ID, model.Role(myAccountDomain.Role).Opposite(), matchAccountRequest.Limit)
+	if err != nil {
+		log.Error("fail to get matched accounts", logger.FError(err))
+		sendError(ctx, err, http.StatusInternalServerError)
+		return
+	}
+	accounts := make([]model.Account, 0, len(accountDomains))
+	for _, accountDomain := range accountDomains {
+		companyDomain, err := p.companyRepository.FetchByID(ctx, *accountDomain.CompanyID)
+		if err != nil {
+			log.Error("fail to fetch company by id", logger.FError(err))
+			sendError(ctx, err, http.StatusInternalServerError)
+			return
+		}
+		var (
+			avatarAttachmentPath   *string
+			documentAttachmentPath *string
+		)
+		if accountDomain.AvatarAttachmentID != nil {
+			avatarAttachment, err := p.attachmentRepository.FetchByID(ctx, *accountDomain.AvatarAttachmentID)
+			if err != nil {
+				log.Error("fail to fetch avatar by id", logger.FError(err))
+				sendError(ctx, err, http.StatusInternalServerError)
+				return
+			}
+			avatarAttachmentPath = avatarAttachment.Path
+		}
+		if accountDomain.DocumentAttachmentID != nil {
+			documentAttachment, err := p.attachmentRepository.FetchByID(ctx, *accountDomain.DocumentAttachmentID)
+			if err != nil {
+				log.Error("fail to fetch document by id", logger.FError(err))
+				sendError(ctx, err, http.StatusInternalServerError)
+				return
+			}
+			documentAttachmentPath = documentAttachment.Path
+		}
+		if err := p.accountRepository.SeenAccount(ctx, accessClaimsToken.ID, accountDomain.ID); err != nil {
+			log.Error("fail to update seen account state", logger.FError(err))
+			sendError(ctx, err, http.StatusInternalServerError)
+			return
+		}
+		account := model.Account{
+			ID:                 accountDomain.ID,
+			FirstName:          accountDomain.FirstName,
+			MiddleName:         accountDomain.MiddleName,
+			LastName:           accountDomain.LastName,
+			Nickname:           accountDomain.Nickname,
+			Role:               model.Role(accountDomain.Role),
+			AboutMe:            accountDomain.AboutMe,
+			Gender:             model.Gender(accountDomain.Gender),
+			Country:            accountDomain.Country,
+			Location:           accountDomain.Location,
+			CompanyID:          accountDomain.CompanyID,
+			CompanyName:        companyDomain.Name,
+			CompanyDescription: companyDomain.Description,
+			AvatarURL:          avatarAttachmentPath,
+			DocumentURL:        documentAttachmentPath,
+		}
+		accounts = append(accounts, account)
+	}
+	sendResponse(ctx, accounts)
 }
