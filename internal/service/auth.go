@@ -47,7 +47,7 @@ func (a *authService) CreateAccount(ctx context.Context, createAccount *model.Cr
 	log := a.container.GetLogger()
 	ctx, cancel := context.WithTimeout(ctx, a.container.GetContentTimeout())
 	defer cancel()
-	telegramInitData, err := decodeTelegramInitData(createAccount.TelegramRawInitData)
+	telegramInitData, err := DecodeTelegramInitData(createAccount.TelegramRawInitData)
 	if err != nil {
 		log.Error("fail to decode telegram init fata", logger.FError(err))
 		return nil, model.TelegramInitDataDecodeError
@@ -74,18 +74,19 @@ func (a *authService) CreateAccount(ctx context.Context, createAccount *model.Cr
 	}
 	gender := string(createAccount.Gender)
 	accountEntity := domain.Account{
-		TelegramID:   &telegramInitData.TelegramUser.ID,
-		FirstName:    &createAccount.FirstName,
-		MiddleName:   createAccount.MiddleName,
-		LastName:     &createAccount.LastName,
-		Nickname:     createAccount.Nickname,
-		AboutMe:      createAccount.AboutMe,
-		Gender:       &gender,
-		Country:      &createAccount.Country,
-		Location:     &createAccount.Location,
-		CompanyID:    createAccount.CompanyID,
-		AvatarPath:   createAccount.AvatarURL,
-		DocumentPath: createAccount.DocumentURL,
+		TelegramID:           telegramInitData.TelegramUser.ID,
+		FirstName:            createAccount.FirstName,
+		MiddleName:           createAccount.MiddleName,
+		LastName:             createAccount.LastName,
+		Role:                 string(createAccount.Role),
+		Nickname:             createAccount.Nickname,
+		AboutMe:              createAccount.AboutMe,
+		Gender:               gender,
+		Country:              &createAccount.Country,
+		Location:             &createAccount.Location,
+		CompanyID:            createAccount.CompanyID,
+		AvatarAttachmentID:   createAccount.AvatarID,
+		DocumentAttachmentID: createAccount.DocumentID,
 	}
 	accountID, err := a.accountRepository.Create(ctx, &accountEntity)
 	if err != nil {
@@ -126,7 +127,7 @@ func (a *authService) ParseRefreshAccountJWT(token string) (*model.RefreshClaims
 func (a *authService) AuthorizationAccount(ctx context.Context, credential *model.Credential) (*model.Account, error) {
 	ctx, cancel := context.WithTimeout(ctx, a.container.GetContentTimeout())
 	defer cancel()
-	telegramInitData, err := decodeTelegramInitData(credential.TelegramRawInitData)
+	telegramInitData, err := DecodeTelegramInitData(credential.TelegramRawInitData)
 	if err != nil {
 		return nil, model.TelegramInitDataDecodeError
 	}
@@ -152,19 +153,20 @@ func (a *authService) AuthorizationAccount(ctx context.Context, credential *mode
 	return &model.Account{
 		ID:         account.ID,
 		TelegramID: account.TelegramID,
-		FirstName:  *account.FirstName,
+		FirstName:  account.FirstName,
 		MiddleName: account.MiddleName,
-		LastName:   *account.LastName,
+		LastName:   account.LastName,
 		Nickname:   account.Nickname,
+		Role:       account.Role,
 		AboutMe:    account.AboutMe,
-		Gender:     model.NewGender(*account.Gender),
+		Gender:     model.NewGender(account.Gender),
 		Country:    account.Country,
 		Location:   account.Location,
 		CompanyID:  account.CompanyID,
 	}, nil
 }
 
-func decodeTelegramInitData(data string) (*model.TelegramInitData, error) {
+func DecodeTelegramInitData(data string) (*model.TelegramInitData, error) {
 	values, err := url.ParseQuery(data)
 	if err != nil {
 		return nil, err
@@ -228,9 +230,9 @@ func (a *authService) validateTelegramInitData(telegramInitData *model.TelegramI
 	if generatedHexHash == telegramInitData.Hash {
 		return true, nil
 	}
-	/// Need fix it
 	log.Error(
 		"corrupted data",
+		logger.F("secret_key", secretKey),
 		logger.F("hash from init data", telegramInitData.Hash),
 		logger.F("generated hash for check equation", generatedHexHash),
 	)

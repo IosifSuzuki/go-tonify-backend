@@ -48,6 +48,7 @@ func main() {
 	box := container.NewContainer(l, app, conn)
 	accountRepository := repository.NewAccountRepository(conn)
 	companyRepository := repository.NewCompanyRepository(conn)
+	attachmentRepository := repository.NewAttachment(conn)
 	countryRepository := repository.NewCountryRepository()
 
 	authService := service.NewAuthService(box, accountRepository, companyRepository)
@@ -56,7 +57,7 @@ func main() {
 	loggerMiddleware := middleware.NewLogger(box)
 	corsMiddleware := middleware.NewCORS(box)
 
-	route.Setup(r, box, authService, attachmentService, authMiddleware, corsMiddleware, loggerMiddleware, accountRepository, companyRepository, countryRepository)
+	route.Setup(r, box, authService, attachmentService, authMiddleware, corsMiddleware, loggerMiddleware, accountRepository, attachmentRepository, companyRepository, countryRepository)
 	go func() {
 		if err := r.Run(app.Address()); err != nil {
 			log.Fatalln(err)

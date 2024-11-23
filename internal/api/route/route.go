@@ -19,14 +19,15 @@ func Setup(
 	corsMiddleware *middleware.CORS,
 	loggerMiddleware *middleware.Logger,
 	accountRepository repository.AccountRepository,
+	attachmentRepository repository.AttachmentRepository,
 	companyRepository repository.CompanyRepository,
 	countryRepository repository.CountryRepository,
 ) {
 	gin.Use(corsMiddleware.CORS())
 	gin.Use(loggerMiddleware.Logging())
-	NewAuthRouter(gin.Group("auth"), container, authService, attachmentService, companyRepository)
+	NewAuthRouter(gin.Group("auth"), container, authService, attachmentService, attachmentRepository, companyRepository)
 	NewCommonRouter(gin.Group("common"), container, countryRepository)
-	NewAccountRouter(gin.Group("account"), container, accountRepository, authMiddleware)
+	NewAccountRouter(gin.Group("account"), container, accountRepository, attachmentRepository, companyRepository, attachmentService, authMiddleware)
 
 	gin.GET("/docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 }

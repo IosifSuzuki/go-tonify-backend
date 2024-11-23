@@ -9,6 +9,7 @@ import (
 
 type CompanyRepository interface {
 	Create(ctx context.Context, company *domain.Company) (*int64, error)
+	Update(ctx context.Context, company *domain.Company) error
 	FetchByID(ctx context.Context, id int64) (*domain.Company, error)
 }
 
@@ -36,10 +37,22 @@ func (c *companyRepository) Create(ctx context.Context, company *domain.Company)
 	return &id, err
 }
 
+func (c *companyRepository) Update(ctx context.Context, company *domain.Company) error {
+	query := "UPDATE company SET name = $1, description = $2, updated_at = $3 WHERE id = $4"
+	_, err := c.conn.ExecContext(
+		ctx,
+		query,
+		company.Name,
+		company.Description,
+		time.Now(),
+		company.ID,
+	)
+	return err
+}
 func (c *companyRepository) FetchByID(ctx context.Context, id int64) (*domain.Company, error) {
 	row := c.conn.QueryRowContext(ctx, "SELECT name, description FROM company WHERE id = $1", id)
-	var company domain.Company
+	company := domain.NewCompany()
 	err := row.Scan(company.Name, company.Description)
-	company.ID = &id
-	return &company, err
+	company.ID = id
+	return company, err
 }

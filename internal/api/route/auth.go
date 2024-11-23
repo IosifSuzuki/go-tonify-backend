@@ -13,9 +13,10 @@ func NewAuthRouter(
 	container container.Container,
 	authService service.AuthService,
 	attachmentService service.AttachmentService,
+	attachmentRepository repository.AttachmentRepository,
 	companyRepository repository.CompanyRepository,
 ) {
-	ac := controller.NewAuthController(container, authService, attachmentService, companyRepository)
+	ac := controller.NewAuthController(container, authService, attachmentService, attachmentRepository, companyRepository)
 
 	group.POST("/sign-up", ac.AccountSignUp)
 	group.POST("/sign-in", ac.AccountSignIn)

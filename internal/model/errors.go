@@ -13,4 +13,5 @@ var (
 	JWTNotValidError                 = errors.New("jwt isn't valid")
 	EmptyAuthorizationHeaderKeyError = errors.New("empty authorization header key")
 	MissedAuthorizationTokenError    = errors.New("missed authorization token")
+	NilError                         = errors.New("nil error")
 )
