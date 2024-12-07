@@ -2,7 +2,6 @@ CREATE TABLE IF NOT EXISTS attachment (
     id SERIAL PRIMARY KEY,
     file_name TEXT,
     path TEXT,
-    status VARCHAR(32),
     created_at TIMESTAMP,
     updated_at TIMESTAMP,
     deleted_at TIMESTAMP

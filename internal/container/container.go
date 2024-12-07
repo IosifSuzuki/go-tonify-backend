@@ -2,28 +2,33 @@ package container
 
 import (
 	"database/sql"
-	"go-tonify-backend/internal/bootstrap"
+	"go-tonify-backend/internal/infrastructure/config"
 	"go-tonify-backend/pkg/logger"
 	"time"
 )
 
 type Container interface {
 	GetLogger() logger.Logger
-	GetTelegramConfig() bootstrap.TelegramConfig
-	GetS3Config() bootstrap.S3Config
-	GetContentTimeout() time.Duration
+	GetTelegramBotToken() string
+	GetAWSConfig() *config.AWS
 	GetDBConnection() *sql.DB
 	GetJWTSecretKey() string
+	GetServerConfig() *config.Server
 	GetAccessJWTExpiresIn() time.Duration
 	GetRefreshJWTExpiresIn() time.Duration
 }
+
 type container struct {
-	config bootstrap.Application
+	config *config.Config
 	conn   *sql.DB
 	logger logger.Logger
 }
 
-func NewContainer(logger logger.Logger, config bootstrap.Application, conn *sql.DB) Container {
+func NewContainer(
+	logger logger.Logger,
+	config *config.Config,
+	conn *sql.DB,
+) Container {
 	return &container{
 		config: config,
 		conn:   conn,
@@ -31,12 +36,12 @@ func NewContainer(logger logger.Logger, config bootstrap.Application, conn *sql.
 	}
 }
 
-func (c *container) GetTelegramConfig() bootstrap.TelegramConfig {
-	return c.config.TelegramConfig
+func (c *container) GetTelegramBotToken() string {
+	return c.config.Telegram.BotToken
 }
 
-func (c *container) GetContentTimeout() time.Duration {
-	return c.config.ContentTimeout
+func (c *container) GetAWSConfig() *config.AWS {
+	return c.config.AWS
 }
 
 func (c *container) GetDBConnection() *sql.DB {
@@ -44,21 +49,21 @@ func (c *container) GetDBConnection() *sql.DB {
 }
 
 func (c *container) GetJWTSecretKey() string {
-	return c.config.JWTSecretKey
+	return c.config.Server.JWTSecretKey
 }
 
 func (c *container) GetAccessJWTExpiresIn() time.Duration {
-	return c.config.AccessJWTExpiresIn
+	return c.config.Server.AccessJWTExpiresIn
 }
 
 func (c *container) GetRefreshJWTExpiresIn() time.Duration {
-	return c.config.RefreshJWTExpiresIn
+	return c.config.Server.RefreshJWTExpiresIn
+}
+
+func (c *container) GetServerConfig() *config.Server {
+	return c.config.Server
 }
 
 func (c *container) GetLogger() logger.Logger {
 	return c.logger
-}
-
-func (c *container) GetS3Config() bootstrap.S3Config {
-	return c.config.S3Config
 }

@@ -1,7 +1,14 @@
 package utils
 
-import "path/filepath"
+import (
+	"go-tonify-backend/internal/domain/entity"
+	"path/filepath"
+)
 
-func ExtFromFileName(fileName string) string {
-	return filepath.Ext(fileName)
+func ExtFromFileName(fileName string) (*string, error) {
+	ext := filepath.Ext(fileName)
+	if len(ext) == 0 {
+		return nil, entity.EmptyValueError
+	}
+	return &ext, nil
 }
