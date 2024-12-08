@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
-swag fmt
-swag init --parseInternal -g\
-  internal/api/route/auth.go\
+swag init\
+  -g  internal/api/interface/http/route.go\
+  --parseInternal\
+
