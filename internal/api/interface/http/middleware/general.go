@@ -7,7 +7,7 @@ import (
 
 func abortWithResponse(ctx *gin.Context, statusCode int, err error) {
 	errorMessage := err.Error()
-	resp := dto.Response[any]{
+	resp := dto.Response{
 		ErrorMessage: &errorMessage,
 	}
 	ctx.AbortWithStatusJSON(statusCode, resp)

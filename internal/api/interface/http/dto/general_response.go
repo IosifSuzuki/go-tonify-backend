@@ -1,6 +1,6 @@
 package dto
 
-type Response[T any] struct {
-	Response     *T      `json:"response"`
-	ErrorMessage *string `json:"error_message"`
+type Response struct {
+	Response     any     `json:"response"`
+	ErrorMessage *string `json:"error_message" example:"failed to parse / validate token"`
 }

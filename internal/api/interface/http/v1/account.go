@@ -28,14 +28,15 @@ func NewAccountHandler(
 
 // GetMy godoc
 //
-//	@Summary		get my account
-//	@Description	get actual account model
-//	@Tags			profile
+//	@Summary		Get My Account
+//	@Description	Get the details of the authenticated user's account
+//	@Tags			account
 //	@Produce		json
-//	@Success		200	{object}	model.Account
-//	@Failure		500	"internal error"
-//	@Failure		401	"invalid access token provided"
-//	@Router			/account/my [get]
+//	@Success		200	{object}	dto.Response{response=dto.Account}	"account details"
+//	@Failure		400	{object}	dto.Response{response=dto.Empty}	"detailed error message"
+//	@Failure		401	{object}	dto.Response{response=dto.Empty}	"the authorization token is invalid/expired/missing"
+//	@Failure		500	{object}	dto.Response{response=dto.Empty}	"detailed error message"
+//	@Router			/v1/account/my [get]
 //	@Security		ApiKeyAuth
 func (a *AccountHandler) GetMy(ctx *gin.Context) {
 	log := a.container.GetLogger()
@@ -48,6 +49,7 @@ func (a *AccountHandler) GetMy(ctx *gin.Context) {
 	accountModel, err := a.accountUsecase.GetDetailsAccount(ctx, *accountID)
 	if err != nil {
 		log.Error("fail to get account by id", logger.F("account_id", accountID), logger.FError(err))
+		failResponse(ctx, http.StatusInternalServerError, dto.FailProcessRequestError)
 		return
 	}
 	account := converter.ConvertModel2AccountResponse(accountModel)
@@ -56,30 +58,29 @@ func (a *AccountHandler) GetMy(ctx *gin.Context) {
 
 // EditMy godoc
 //
-//	@Summary		edit my account
-//	@Description	get actual account model
-//	@Tags			profile
+//	@Summary		Edit my account
+//	@Description	Edit the details of the authenticated user's account
+//	@Tags			account
 //	@Accept			multipart/form-data
 //	@Produce		json
-//
-//	@Param			first_name			formData	string	true	"first_name"
-//	@Param			middle_name			formData	string	false	"middle_name"
-//	@Param			last_name			formData	string	true	"last_name"
-//	@Param			role				formData	string	true	"role"
-//	@Param			nickname			formData	string	true	"nickname"
-//	@Param			about_me			formData	string	true	"about_me"
-//	@Param			gender				formData	string	true	"gender"
-//	@Param			country				formData	string	true	"country"
-//	@Param			location			formData	string	true	"location"
-//	@Param			company_name		formData	string	true	"company_name"
-//	@Param			company_description	formData	string	true	"company_description"
-//
-//	@Param			avatar				formData	file	true	"Profile picture"
-//	@Param			document			formData	file	true	"Profile Document"
-//	@Success		200					{object}	model.Account
-//	@Failure		500					"internal error"
-//	@Failure		401					"invalid access token provided"
-//	@Router			/account/edit [patch]
+//	@Param			first_name			formData	string								true	"first name"
+//	@Param			middle_name			formData	string								false	"middle name"
+//	@Param			last_name			formData	string								true	"last mame"
+//	@Param			role				formData	string								true	"role"	Enums(client, freelancer)
+//	@Param			nickname			formData	string								true	"nickname"
+//	@Param			about_me			formData	string								false	"about me"
+//	@Param			gender				formData	string								true	"gender"	Enums(male, female)
+//	@Param			country				formData	string								true	"country"
+//	@Param			location			formData	string								true	"location"
+//	@Param			company_name		formData	string								false	"company name"
+//	@Param			company_description	formData	string								false	"company description"
+//	@Param			avatar				formData	file								true	"avatar file"
+//	@Param			document			formData	file								true	"document file"
+//	@Success		200					{object}	dto.Response{response=dto.Account}	"account details"
+//	@Failure		400					{object}	dto.Response{response=dto.Empty}	"detailed error message"
+//	@Failure		401					{object}	dto.Response{response=dto.Empty}	"the authorization token is invalid/expired/missing"
+//	@Failure		500					{object}	dto.Response{response=dto.Empty}	"detailed error message"
+//	@Router			/v1/account/edit [patch]
 //	@Security		ApiKeyAuth
 func (a *AccountHandler) EditMy(ctx *gin.Context) {
 	log := a.container.GetLogger()
@@ -141,15 +142,16 @@ func (a *AccountHandler) EditMy(ctx *gin.Context) {
 
 // MatchAccounts godoc
 //
-//	@Summary		match accounts
-//	@Description	get accounts by matching
-//	@Tags			profile
-//	@Param			request	body	model.MatchAccountRequest	true	"match account"
+//	@Summary		Match accounts
+//	@Description	Find accounts matching
+//	@Tags			account
+//	@Param			request	body	dto.GetMatchAccounts	true	"matching accounts parameters"
 //	@Produce		json
-//	@Success		200	{array}	model.Account
-//	@Failure		500	"internal error"
-//	@Failure		401	"invalid access token provided"
-//	@Router			/account/matching [get]
+//	@Success		200	{object}	dto.Response{response=[]dto.Account}	"list of matching accounts"
+//	@Failure		400	{object}	dto.Response{response=dto.Empty}		"detailed error message"
+//	@Failure		401	{object}	dto.Response{response=dto.Empty}		"the authorization token is invalid/expired/missing"
+//	@Failure		500	{object}	dto.Response{response=dto.Empty}		"detailed error message"
+//	@Router			/v1/account/matching [get]
 //	@Security		ApiKeyAuth
 func (a *AccountHandler) MatchAccounts(ctx *gin.Context) {
 	log := a.container.GetLogger()

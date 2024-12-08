@@ -21,7 +21,7 @@ func getAccountID(ctx *gin.Context) (*int64, error) {
 }
 
 func successResponse[T any](ctx *gin.Context, code int, model T) {
-	var response = dto.Response[T]{
+	var response = dto.Response{
 		Response: &model,
 	}
 	ctx.JSON(code, response)
@@ -29,7 +29,7 @@ func successResponse[T any](ctx *gin.Context, code int, model T) {
 
 func failResponse(ctx *gin.Context, code int, error error) {
 	var errorMessage = error.Error()
-	var response = dto.Response[any]{
+	var response = dto.Response{
 		Response:     nil,
 		ErrorMessage: &errorMessage,
 	}

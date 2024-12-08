@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	_ "github.com/lib/pq"
-	_ "go-tonify-backend/docs"
 	v1 "go-tonify-backend/internal/api/interface/http"
 	"go-tonify-backend/internal/container"
 	accountRepository "go-tonify-backend/internal/domain/account/repository"
@@ -18,23 +17,6 @@ import (
 	"log"
 )
 
-//	@title			Swagger Tonify API
-//	@version		1.0
-//	@description	Server help to interact with telegram mini app Tonify.
-//	@termsOfService	http://swagger.io/terms/
-
-//	@contact.name	API Support
-//	@contact.url	http://www.swagger.io/support
-//	@contact.email	support@swagger.io
-
-//	@license.name	Apache 2.0
-//	@license.url	http://www.apache.org/licenses/LICENSE-2.0.html
-
-//	@host		localhost:8080
-//	@BasePath	/
-
-// @externalDocs.description	OpenAPI
-// @externalDocs.url			https://swagger.io/resources/open-api/
 func main() {
 	cont, err := composeContainer()
 	if err != nil {

@@ -472,6 +472,8 @@ func (a *account) GetByTelegramID(ctx context.Context, telegramID int64) (*entit
 	)
 	var account = entity.Account{
 		TelegramID: telegramID,
+		Country:    new(string),
+		Location:   new(string),
 	}
 	err := row.Scan(
 		&account.ID,
@@ -484,8 +486,8 @@ func (a *account) GetByTelegramID(ctx context.Context, telegramID int64) (*entit
 		&gender,
 		account.Country,
 		account.Location,
-		account.AvatarAttachmentID,
-		account.DocumentAttachmentID,
+		&avatarID,
+		&documentID,
 		&companyID,
 		&createdAt,
 		&updatedAt,

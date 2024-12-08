@@ -3,6 +3,7 @@ package converter
 import (
 	"go-tonify-backend/internal/api/interface/http/dto"
 	"go-tonify-backend/internal/domain/account/model"
+	"go-tonify-backend/pkg/datetime"
 )
 
 func ConvertModel2AccountResponse(accountModel *model.Account) *dto.Account {
@@ -18,38 +19,26 @@ func ConvertModel2AccountResponse(accountModel *model.Account) *dto.Account {
 		Gender:     accountModel.Gender,
 		Country:    accountModel.Country,
 		Location:   accountModel.Location,
-		CreatedAt:  accountModel.CreatedAt,
-		UpdatedAt:  accountModel.UpdatedAt,
+	}
+	if createdAt := accountModel.CreatedAt; createdAt != nil {
+		dt := datetime.Datetime(*createdAt)
+		account.CreatedAt = &dt
+	}
+	if updatedAt := accountModel.CreatedAt; updatedAt != nil {
+		dt := datetime.Datetime(*updatedAt)
+		account.CreatedAt = &dt
 	}
 	if accountModel.Company != nil {
-		company := dto.Company{
-			ID:          accountModel.Company.ID,
-			Name:        &accountModel.Company.Name,
-			Description: &accountModel.Company.Description,
-			CreatedAt:   accountModel.Company.CreatedAt,
-			UpdatedAt:   accountModel.Company.UpdatedAt,
-		}
-		account.Company = &company
+		company := ConvertModel2CompanyResponse(accountModel.Company)
+		account.Company = company
 	}
 	if accountModel.AvatarAttachment != nil {
-		avatarAttachment := dto.Attachment{
-			ID:        &accountModel.AvatarAttachment.ID,
-			Name:      &accountModel.AvatarAttachment.Name,
-			Path:      &accountModel.AvatarAttachment.Path,
-			CreatedAt: accountModel.AvatarAttachment.CreatedAt,
-			UpdatedAt: accountModel.AvatarAttachment.UpdatedAt,
-		}
-		account.AvatarAttachment = &avatarAttachment
+		avatarAttachment := ConvertModel2AttachmentResponse(accountModel.AvatarAttachment)
+		account.AvatarAttachment = avatarAttachment
 	}
 	if accountModel.DocumentAttachment != nil {
-		documentAttachment := dto.Attachment{
-			ID:        &accountModel.DocumentAttachment.ID,
-			Name:      &accountModel.DocumentAttachment.Name,
-			Path:      &accountModel.DocumentAttachment.Path,
-			CreatedAt: accountModel.DocumentAttachment.CreatedAt,
-			UpdatedAt: accountModel.DocumentAttachment.UpdatedAt,
-		}
-		account.DocumentAttachment = &documentAttachment
+		documentAttachment := ConvertModel2AttachmentResponse(accountModel.DocumentAttachment)
+		account.DocumentAttachment = documentAttachment
 	}
 	return &account
 }

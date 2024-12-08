@@ -28,29 +28,31 @@ func NewAuthHandler(
 
 // SignUp godoc
 //
-//	@Summary		sign up / create account
-//	@Description	record a account to db then return pairs of jwt tokens (access / refresh)
+//	@Summary		Sign up a new user
+//	@Description	Create a new account. The account will be validated and recorded in the database.
+//	@Description	Attachments will be saved in external storage. Server returns access / refresh tokens
 //	@Tags			auth
 //	@Accept			multipart/form-data
 //	@Produce		json
-//	@Param			telegram_raw_init_data	formData	string			true	"telegram_raw_init_data"
-//	@Param			first_name				formData	string			true	"first_name"
-//	@Param			middle_name				formData	string			false	"middle_name"
-//	@Param			last_name				formData	string			true	"last_name"
-//	@Param			role					formData	string			true	"role"
-//	@Param			nickname				formData	string			true	"nickname"
-//	@Param			about_me				formData	string			true	"about_me"
-//	@Param			gender					formData	string			true	"gender"
-//	@Param			country					formData	string			true	"country"
-//	@Param			location				formData	string			true	"location"
-//	@Param			company_name			formData	string			false	"company_name"
-//	@Param			company_description		formData	string			false	"company_description"
-//	@Param			avatar					formData	file			true	"avatar"
-//	@Param			document				formData	file			true	"document"
-//	@Success		201						{object}	dto.PairToken	"pair token"
-//	@Failure		400						"bad parameters"
-//	@Failure		500						"internal error"
-//	@Router			/auth/sign-up [post]
+//	@Param			telegram_init_data	formData	string									true	"telegram init data"
+//	@Param			first_name			formData	string									true	"first name"
+//	@Param			middle_name			formData	string									false	"middle name"
+//	@Param			last_name			formData	string									true	"last mame"
+//	@Param			role				formData	string									true	"role"	Enums(client, freelancer)
+//	@Param			nickname			formData	string									true	"nickname"
+//	@Param			about_me			formData	string									false	"about me"
+//	@Param			gender				formData	string									true	"gender"	Enums(male, female)
+//	@Param			country				formData	string									true	"country"
+//	@Param			location			formData	string									true	"location"
+//	@Param			company_name		formData	string									false	"company name"
+//	@Param			company_description	formData	string									false	"company description"
+//	@Param			avatar				formData	file									true	"avatar file"
+//	@Param			document			formData	file									true	"document file "
+//	@Success		201					{object}	dto.Response{response=dto.PairToken}	"access & refresh tokens"
+//	@Failure		400					{object}	dto.Response{response=dto.Empty}		"detailed error message"
+//	@Failure		409					{object}	dto.Response{response=dto.Empty}		"detailed error message, provided data already exist"
+//	@Failure		500					{object}	dto.Response{response=dto.Empty}		"detailed error message"
+//	@Router			/v1/auth/sign-up [post]
 func (a *AuthHandler) SignUp(ctx *gin.Context) {
 	log := a.container.GetLogger()
 	var createAccountRequest dto.CreateAccount
@@ -72,12 +74,12 @@ func (a *AuthHandler) SignUp(ctx *gin.Context) {
 		return
 	}
 	createAccount := model.CreateAccount{
-		TelegramInitData:   createAccountRequest.TelegramRawInitData,
+		TelegramInitData:   createAccountRequest.TelegramInitData,
 		FirstName:          createAccountRequest.FirstName,
 		MiddleName:         createAccountRequest.MiddleName,
 		LastName:           createAccountRequest.LastName,
 		Role:               string(createAccountRequest.Role),
-		Nickname:           createAccountRequest.Nickname,
+		Nickname:           &createAccountRequest.Nickname,
 		AboutMe:            createAccountRequest.AboutMe,
 		Gender:             string(createAccountRequest.Gender),
 		Country:            createAccountRequest.Country,
@@ -121,17 +123,16 @@ func (a *AuthHandler) SignUp(ctx *gin.Context) {
 
 // SignIn godoc
 //
-//	@Summary		sign in & authentication
-//	@Description	process of authentication to system through provided credentials
+//	@Summary		Sign in an existing user
+//	@Description	The user provides their Telegram initialization data. The user performs authentication, and if successful, access and refresh tokens are returned
 //	@Tags			auth
 //	@Accept			json
 //	@Produce		json
-//	@Param			request	body		dto.Credential	true	"credential"
-//	@Success		200		{object}	dto.PairToken	"pair token"
-//	@Failure		400		"bad parameters"
-//	@Failure		401		"incorrect or missing credentials"
-//	@Failure		500		"internal error"
-//	@Router			/auth/sign-in [post]
+//	@Param			request	body		dto.Credential							true	"credential"
+//	@Success		200		{object}	dto.Response{response=dto.PairToken}	"pair token"
+//	@Failure		400		{object}	dto.Response{response=dto.Empty}		"detailed error message"
+//	@Failure		500		{object}	dto.Response{response=dto.Empty}		"detailed error message"
+//	@Router			/v1/auth/sign-in [post]
 func (a *AuthHandler) SignIn(ctx *gin.Context) {
 	log := a.container.GetLogger()
 	var credentialRequest dto.Credential
@@ -140,10 +141,10 @@ func (a *AuthHandler) SignIn(ctx *gin.Context) {
 		failResponse(ctx, http.StatusBadRequest, dto.BadRequestError)
 		return
 	}
-	accountID, err := a.accountUsecase.AuthenticationTelegram(ctx, credentialRequest.TelegramRawInitData)
+	accountID, err := a.accountUsecase.AuthenticationTelegram(ctx, credentialRequest.TelegramInitData)
 	if err != nil {
 		log.Error("fail to authentication account by telegram init data", logger.FError(err))
-		failResponse(ctx, http.StatusBadRequest, dto.BadRequestError)
+		failResponse(ctx, http.StatusInternalServerError, dto.InternalServerError)
 		return
 	}
 	if accountID == nil {

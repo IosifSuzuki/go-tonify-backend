@@ -4,7 +4,7 @@
     "code": "AF"
   },
   {
-    "name": "land Islands",
+    "name": "Åland Islands",
     "code": "AX"
   },
   {
@@ -20,7 +20,7 @@
     "code": "AS"
   },
   {
-    "name": "AndorrA",
+    "name": "Andorra",
     "code": "AD"
   },
   {
@@ -212,7 +212,7 @@
     "code": "CR"
   },
   {
-    "name": "Cote D\"Ivoire",
+    "name": "Côte d'Ivoire",
     "code": "CI"
   },
   {
@@ -476,7 +476,7 @@
     "code": "KG"
   },
   {
-    "name": "Lao People\"S Democratic Republic",
+    "name": "Lao People's Democratic Republic",
     "code": "LA"
   },
   {
@@ -496,7 +496,7 @@
     "code": "LR"
   },
   {
-    "name": "Libyan Arab Jamahiriya",
+    "name": "Libya",
     "code": "LY"
   },
   {
@@ -618,10 +618,6 @@
   {
     "name": "Netherlands",
     "code": "NL"
-  },
-  {
-    "name": "Netherlands Antilles",
-    "code": "AN"
   },
   {
     "name": "New Caledonia",

@@ -1,15 +1,29 @@
 package http
 
 import (
+	"fmt"
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
+	"go-tonify-backend/docs"
 	"go-tonify-backend/internal/api/interface/http/middleware"
 	"go-tonify-backend/internal/api/interface/http/v1"
 	"go-tonify-backend/internal/container"
 	accountUsecase "go-tonify-backend/internal/domain/account/usecase"
 	countryUsecase "go-tonify-backend/internal/domain/country/usecase"
+	"go-tonify-backend/pkg/datetime"
+	"time"
 )
+
+//	@title			Swagger Tonify API
+//	@version		1.0
+//	@termsOfService	http://swagger.io/terms/
+
+//	@contact.name	API Support
+//	@contact.email	tonifyapp@gmail.com
+
+//	@license.name	Apache 2.0
+//	@license.url	http://www.apache.org/licenses/LICENSE-2.0.html
 
 type Handler struct {
 	container      container.Container
@@ -39,6 +53,8 @@ func (h *Handler) Run() error {
 	r.Use(corsMiddleware.CORS())
 	r.Use(loggerMiddleware.Logging())
 
+	h.ConfigureSwagDocs()
+
 	v1 := r.Group("api/v1")
 
 	authHandler := h.composeAuthHandler()
@@ -67,6 +83,15 @@ func (h *Handler) Run() error {
 
 	go h.runHttpServer(r)
 	return h.runHttpsServer(r)
+}
+
+func (h *Handler) ConfigureSwagDocs() {
+	serverConf := h.container.GetServerConfig()
+	timeStarted := datetime.GetTimeString(time.Now(), datetime.ReadableFormatLayoutTime)
+	docs.SwaggerInfo.Host = serverConf.Addr
+	docs.SwaggerInfo.Description = fmt.Sprintf("The server helps interact with the telegram mini-application. API supports versions: /v1/, /v2/\nLast updated: %s", timeStarted)
+	docs.SwaggerInfo.BasePath = "/api/"
+	docs.SwaggerInfo.Schemes = []string{"http", "https"}
 }
 
 func (h *Handler) runHttpServer(r *gin.Engine) error {
