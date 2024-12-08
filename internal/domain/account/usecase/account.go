@@ -420,6 +420,11 @@ func (a *account) GetMatchAccounts(ctx context.Context, accountID int64, limit i
 	}
 	accounts := make([]model.Account, 0, len(accountEntities))
 	for _, accountEntity := range accountEntities {
+		err := a.accountRepository.SeenAccount(ctx, accountID, accountEntity.ID)
+		if err != nil {
+			log.Error("fail to mark account as seen", logger.FError(err))
+			return nil, err
+		}
 		account := converter.ConvertEntity2AccountModel(&accountEntity)
 		accounts = append(accounts, *account)
 	}
