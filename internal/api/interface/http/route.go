@@ -71,6 +71,7 @@ func (h *Handler) Run() error {
 		accountGroup.GET("/my", accountHandler.GetMy)
 		accountGroup.PATCH("/edit", accountHandler.EditMy)
 		accountGroup.GET("/matching", accountHandler.MatchAccounts)
+		accountGroup.DELETE("/delete", accountHandler.DeleteMy)
 	}
 	commonHandler := h.composeCommon()
 	commonGroup := v1.Group("/common")

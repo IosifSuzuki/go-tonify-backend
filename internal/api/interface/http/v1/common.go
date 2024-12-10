@@ -48,7 +48,7 @@ func (c *CommonHandler) Countries(ctx *gin.Context) {
 	countryModels, err := c.countryUsecase.GetCountries()
 	if err != nil {
 		log.Error("fail to get all countries", logger.FError(err))
-		failResponse(ctx, http.StatusInternalServerError, err)
+		failResponse(ctx, http.StatusInternalServerError, dto.InternalServerError, err)
 		return
 	}
 	countries := make([]dto.Country, 0, len(countryModels))
