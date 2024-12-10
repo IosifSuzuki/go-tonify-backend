@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"github.com/google/uuid"
 	"go-tonify-backend/internal/container"
@@ -26,6 +27,7 @@ type Account interface {
 	GetDetailsAccount(ctx context.Context, id int64) (*model.Account, error)
 	EditAccount(ctx context.Context, editAccount model.EditAccount) error
 	GetMatchAccounts(ctx context.Context, accountID int64, limit int64) ([]model.Account, error)
+	DeleteAccount(ctx context.Context, accountID int64) error
 }
 
 type account struct {
@@ -80,6 +82,11 @@ func (a *account) CreateAccount(ctx context.Context, createAccount model.CreateA
 	if !validTelegramInitData {
 		log.Error("not valid telegram init data", logger.FError(err))
 		return nil, model.InvalidTelegramInitDataError
+	}
+	isDeletedAccountWithTelegramID, err := a.accountRepository.IsDeletedAccountByTelegramID(ctx, telegramInitModel.TelegramUser.ID)
+	if isDeletedAccountWithTelegramID {
+		log.Error("account not exist in db", logger.F("telegram_id", telegramInitModel.TelegramUser.ID))
+		return nil, model.DuplicateAccountWithTelegramIDError
 	}
 	existAccountWithTelegramID, err := a.accountRepository.ExistsWithTelegramID(ctx, telegramInitModel.TelegramUser.ID)
 	if err != nil {
@@ -216,7 +223,12 @@ func (a *account) EditAccount(ctx context.Context, editAccount model.EditAccount
 		account, err := composed.Account.GetFullDetailByID(ctx, editAccount.ID)
 		if err != nil {
 			log.Error("fail to get account by id", logger.FError(err))
-			return err
+			switch err {
+			case sql.ErrNoRows:
+				return model.EntityNotFoundError
+			default:
+				return err
+			}
 		}
 		if account.AvatarAttachmentID == nil || account.DocumentAttachmentID == nil {
 			log.Error("both avatar and document are required for edit a account")
@@ -385,7 +397,12 @@ func (a *account) AuthenticationTelegram(ctx context.Context, telegramInitData s
 	accountEntity, err := a.accountRepository.GetByTelegramID(ctx, telegramInitModel.TelegramUser.ID)
 	if err != nil {
 		log.Error("can't retrieve telegram by id", logger.FError(err))
-		return nil, err
+		switch err {
+		case sql.ErrNoRows:
+			return nil, model.EntityNotFoundError
+		default:
+			return nil, err
+		}
 	}
 	if accountEntity == nil {
 		err = model.NilError
@@ -400,10 +417,62 @@ func (a *account) GetDetailsAccount(ctx context.Context, id int64) (*model.Accou
 	account, err := a.accountRepository.GetFullDetailByID(ctx, id)
 	if err != nil {
 		log.Error("fail to get account by id")
-		return nil, err
+		switch err {
+		case sql.ErrNoRows:
+			return nil, model.EntityNotFoundError
+		default:
+			return nil, err
+		}
 	}
 	accountModel := converter.ConvertEntity2AccountModel(account)
 	return accountModel, nil
+}
+
+func (a *account) DeleteAccount(ctx context.Context, accountID int64) error {
+	log := a.container.GetLogger()
+	account, err := a.accountRepository.GetFullDetailByID(ctx, accountID)
+	if err != nil {
+		log.Error("fail to get profile by id", logger.FError(err))
+		switch err {
+		case sql.ErrNoRows:
+			return model.EntityNotFoundError
+		default:
+			return err
+		}
+	}
+	err = a.transactionProvider.Transact(func(composed transaction.ComposedRepository) error {
+		if err = composed.Account.Delete(ctx, account.ID); err != nil {
+			log.Error("fail to delete account from db", logger.FError(err))
+			return err
+		}
+		if companyID := account.CompanyID; companyID != nil {
+			err = composed.Company.Delete(ctx, *companyID)
+			if err != nil {
+				log.Error("fail to delete company from db", logger.FError(err))
+				return err
+			}
+		}
+		if avatarAttachmentID := account.AvatarAttachmentID; avatarAttachmentID != nil {
+			err = composed.Attachment.Delete(ctx, *avatarAttachmentID)
+			if err != nil {
+				log.Error("fail to delete avatar attachment from db", logger.FError(err))
+				return err
+			}
+		}
+		if documentAttachmentID := account.DocumentAttachmentID; documentAttachmentID != nil {
+			err := composed.Attachment.Delete(ctx, *documentAttachmentID)
+			if err != nil {
+				log.Error("fail to delete document attachment from db", logger.FError(err))
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		log.Error("fail to delete a account and associate data to it from db", logger.FError(err))
+		return err
+	}
+	return nil
 }
 
 func (a *account) GetMatchAccounts(ctx context.Context, accountID int64, limit int64) ([]model.Account, error) {
@@ -411,7 +480,12 @@ func (a *account) GetMatchAccounts(ctx context.Context, accountID int64, limit i
 	accountEntity, err := a.accountRepository.GetByID(ctx, accountID)
 	if err != nil {
 		log.Error("fail to get account by id", logger.FError(err))
-		return nil, err
+		switch err {
+		case sql.ErrNoRows:
+			return nil, model.EntityNotFoundError
+		default:
+			return nil, err
+		}
 	}
 	accountEntities, err := a.accountRepository.GetMatchedAccounts(ctx, accountID, accountEntity.Role.Opposite(), limit)
 	if err != nil {
