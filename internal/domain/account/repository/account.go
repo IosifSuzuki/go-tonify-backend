@@ -10,6 +10,7 @@ import (
 
 type Account interface {
 	ExistsWithTelegramID(ctx context.Context, telegramID int64) (bool, error)
+	IsDeletedAccountByTelegramID(ctx context.Context, telegramID int64) (bool, error)
 	Create(ctx context.Context, account *entity.Account) (*int64, error)
 	GetByID(ctx context.Context, id int64) (*entity.Account, error)
 	GetByIDWithCompany(ctx context.Context, id int64) (*entity.Account, error)
@@ -34,6 +35,13 @@ func NewAccount(conn psql.Operation) Account {
 
 func (a *account) ExistsWithTelegramID(ctx context.Context, telegramID int64) (bool, error) {
 	query := "SELECT EXISTS(SELECT 1 FROM account WHERE telegram_id=$1 AND account.deleted_at IS NULL);"
+	var exists bool
+	err := a.conn.QueryRowContext(ctx, query, telegramID).Scan(&exists)
+	return exists, err
+}
+
+func (a *account) IsDeletedAccountByTelegramID(ctx context.Context, telegramID int64) (bool, error) {
+	query := "SELECT EXISTS(SELECT 1 FROM account WHERE telegram_id=$1 AND account.deleted_at IS NOT NULL);"
 	var exists bool
 	err := a.conn.QueryRowContext(ctx, query, telegramID).Scan(&exists)
 	return exists, err
@@ -563,7 +571,7 @@ func (a *account) Update(ctx context.Context, account *entity.Account) error {
 
 func (a *account) Delete(ctx context.Context, id int64) error {
 	query := "UPDATE account SET" +
-		"	deleted_at = $1" +
+		"	deleted_at = $1 " +
 		"WHERE id = $2;"
 	_, err := a.conn.ExecContext(ctx, query, time.Now(), id)
 	return err

@@ -3,6 +3,7 @@ package v1
 import (
 	"github.com/gin-gonic/gin"
 	"go-tonify-backend/internal/api/interface/http/dto"
+	"go-tonify-backend/internal/utils"
 )
 
 func getAccountID(ctx *gin.Context) (*int64, error) {
@@ -27,11 +28,14 @@ func successResponse[T any](ctx *gin.Context, code int, model T) {
 	ctx.JSON(code, response)
 }
 
-func failResponse(ctx *gin.Context, code int, error error) {
+func failResponse(ctx *gin.Context, code int, error error, internalError error) {
 	var errorMessage = error.Error()
 	var response = dto.Response{
 		Response:     nil,
 		ErrorMessage: &errorMessage,
+	}
+	if internalError != nil {
+		response.ErrorCause = utils.NewString(internalError.Error())
 	}
 	ctx.JSON(code, response)
 }

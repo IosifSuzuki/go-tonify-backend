@@ -58,19 +58,19 @@ func (a *AuthHandler) SignUp(ctx *gin.Context) {
 	var createAccountRequest dto.CreateAccount
 	if err := ctx.ShouldBind(&createAccountRequest); err != nil {
 		log.Error("fail to parse/validate request model", logger.FError(err))
-		failResponse(ctx, http.StatusBadRequest, dto.BadRequestError)
+		failResponse(ctx, http.StatusBadRequest, dto.BadRequestError, err)
 		return
 	}
 	avatarFileHeader, err := ctx.FormFile("avatar")
 	if err != nil {
 		log.Error("fail to retrieve avatar file header", logger.FError(err))
-		failResponse(ctx, http.StatusBadRequest, dto.BadRequestError)
+		failResponse(ctx, http.StatusBadRequest, dto.BadRequestError, err)
 		return
 	}
 	documentFileHeader, err := ctx.FormFile("document")
 	if err != nil {
 		log.Error("fail to retrieve document file header", logger.FError(err))
-		failResponse(ctx, http.StatusBadRequest, dto.BadRequestError)
+		failResponse(ctx, http.StatusBadRequest, dto.BadRequestError, err)
 		return
 	}
 	createAccount := model.CreateAccount{
@@ -93,28 +93,28 @@ func (a *AuthHandler) SignUp(ctx *gin.Context) {
 	if err != nil {
 		switch err {
 		case model.NilError:
-			failResponse(ctx, http.StatusInternalServerError, dto.InternalServerError)
+			failResponse(ctx, http.StatusInternalServerError, dto.InternalServerError, err)
 		case model.DuplicateAccountWithTelegramIDError:
-			failResponse(ctx, http.StatusConflict, dto.DuplicateAccountWithTelegramIDError)
+			failResponse(ctx, http.StatusConflict, dto.DuplicateAccountWithTelegramIDError, err)
 		default:
-			failResponse(ctx, http.StatusInternalServerError, dto.FailProcessRequestError)
+			failResponse(ctx, http.StatusInternalServerError, dto.FailProcessRequestError, err)
 		}
 		return
 	}
 	if accountID == nil {
 		log.Error("account id has nil value")
-		failResponse(ctx, http.StatusInternalServerError, dto.InternalServerError)
+		failResponse(ctx, http.StatusInternalServerError, dto.InternalServerError, err)
 		return
 	}
 	pairTokenModel, err := a.accountUsecase.GeneratePairToken(*accountID)
 	if err != nil {
 		log.Error("fail to generate pair token", logger.FError(err))
-		failResponse(ctx, http.StatusInternalServerError, dto.InternalServerError)
+		failResponse(ctx, http.StatusInternalServerError, dto.InternalServerError, err)
 		return
 	}
 	if pairTokenModel == nil {
 		log.Error("pair token has nil value")
-		failResponse(ctx, http.StatusInternalServerError, dto.InternalServerError)
+		failResponse(ctx, http.StatusInternalServerError, dto.InternalServerError, err)
 		return
 	}
 	pairToken := converter.ConvertModel2PairTokenResponse(*pairTokenModel)
@@ -131,6 +131,7 @@ func (a *AuthHandler) SignUp(ctx *gin.Context) {
 //	@Param			request	body		dto.Credential							true	"credential"
 //	@Success		200		{object}	dto.Response{response=dto.PairToken}	"pair token"
 //	@Failure		400		{object}	dto.Response{response=dto.Empty}		"detailed error message"
+//	@Failure		410		{object}	dto.Response{response=dto.Empty}	"account does not exist or has been deleted"
 //	@Failure		500		{object}	dto.Response{response=dto.Empty}		"detailed error message"
 //	@Router			/v1/auth/sign-in [post]
 func (a *AuthHandler) SignIn(ctx *gin.Context) {
@@ -138,29 +139,34 @@ func (a *AuthHandler) SignIn(ctx *gin.Context) {
 	var credentialRequest dto.Credential
 	if err := ctx.ShouldBindJSON(&credentialRequest); err != nil {
 		log.Error("fail to parse/validate request model", logger.FError(err))
-		failResponse(ctx, http.StatusBadRequest, dto.BadRequestError)
+		failResponse(ctx, http.StatusBadRequest, dto.BadRequestError, err)
 		return
 	}
 	accountID, err := a.accountUsecase.AuthenticationTelegram(ctx, credentialRequest.TelegramInitData)
 	if err != nil {
 		log.Error("fail to authentication account by telegram init data", logger.FError(err))
-		failResponse(ctx, http.StatusInternalServerError, dto.InternalServerError)
+		switch err {
+		case model.EntityNotFoundError:
+			failResponse(ctx, http.StatusGone, dto.ModelNotFoundError, err)
+		default:
+			failResponse(ctx, http.StatusInternalServerError, dto.FailProcessRequestError, err)
+		}
 		return
 	}
 	if accountID == nil {
 		log.Error("account id has nil value", logger.FError(err))
-		failResponse(ctx, http.StatusInternalServerError, dto.InternalServerError)
+		failResponse(ctx, http.StatusInternalServerError, dto.InternalServerError, err)
 		return
 	}
 	pairTokenModel, err := a.accountUsecase.GeneratePairToken(*accountID)
 	if err != nil {
 		log.Error("fail to generate pair token", logger.FError(err))
-		failResponse(ctx, http.StatusInternalServerError, dto.InternalServerError)
+		failResponse(ctx, http.StatusInternalServerError, dto.InternalServerError, err)
 		return
 	}
 	if pairTokenModel == nil {
 		log.Error("pair token has nil value")
-		failResponse(ctx, http.StatusInternalServerError, dto.InternalServerError)
+		failResponse(ctx, http.StatusInternalServerError, dto.InternalServerError, err)
 		return
 	}
 	pairToken := converter.ConvertModel2PairTokenResponse(*pairTokenModel)
