@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go-tonify-backend/internal/api/interface/http/dto"
 	"go-tonify-backend/internal/api/interface/http/v1/converter"
+	"go-tonify-backend/internal/api/interface/http/validator"
 	"go-tonify-backend/internal/container"
 	"go-tonify-backend/internal/domain/account/model"
 	"go-tonify-backend/internal/domain/account/usecase"
@@ -13,15 +14,18 @@ import (
 
 type AuthHandler struct {
 	container      container.Container
+	validation     validator.HttpValidator
 	accountUsecase usecase.Account
 }
 
 func NewAuthHandler(
 	container container.Container,
+	validation validator.HttpValidator,
 	accountUsecase usecase.Account,
 ) *AuthHandler {
 	return &AuthHandler{
 		container:      container,
+		validation:     validation,
 		accountUsecase: accountUsecase,
 	}
 }
@@ -58,7 +62,7 @@ func (a *AuthHandler) SignUp(ctx *gin.Context) {
 	var createAccountRequest dto.CreateAccount
 	if err := ctx.ShouldBind(&createAccountRequest); err != nil {
 		log.Error("fail to parse/validate request model", logger.FError(err))
-		failResponse(ctx, http.StatusBadRequest, dto.BadRequestError, err)
+		badRequestResponse(ctx, a.validation, dto.BadRequestError, err)
 		return
 	}
 	avatarFileHeader, err := ctx.FormFile("avatar")
@@ -139,7 +143,7 @@ func (a *AuthHandler) SignIn(ctx *gin.Context) {
 	var credentialRequest dto.Credential
 	if err := ctx.ShouldBindJSON(&credentialRequest); err != nil {
 		log.Error("fail to parse/validate request model", logger.FError(err))
-		failResponse(ctx, http.StatusBadRequest, dto.BadRequestError, err)
+		badRequestResponse(ctx, a.validation, dto.BadRequestError, err)
 		return
 	}
 	accountID, err := a.accountUsecase.AuthenticationTelegram(ctx, credentialRequest.TelegramInitData)

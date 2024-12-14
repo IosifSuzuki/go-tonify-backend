@@ -3,11 +3,15 @@ package http
 import (
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
+	v "github.com/go-playground/validator/v10"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 	"go-tonify-backend/docs"
+	"go-tonify-backend/internal/api/interface/http/dto"
 	"go-tonify-backend/internal/api/interface/http/middleware"
 	"go-tonify-backend/internal/api/interface/http/v1"
+	"go-tonify-backend/internal/api/interface/http/validator"
 	"go-tonify-backend/internal/container"
 	accountUsecase "go-tonify-backend/internal/domain/account/usecase"
 	countryUsecase "go-tonify-backend/internal/domain/country/usecase"
@@ -46,6 +50,10 @@ func NewHandler(
 func (h *Handler) Run() error {
 	r := gin.Default()
 
+	validation, err := h.configureAndInitValidation()
+	if err != nil {
+		return err
+	}
 	loggerMiddleware := middleware.NewLogger(h.container)
 	corsMiddleware := middleware.NewCORS(h.container)
 	authMiddleware := middleware.NewAuth(h.container, h.accountUsecase)
@@ -57,14 +65,14 @@ func (h *Handler) Run() error {
 
 	v1 := r.Group("api/v1")
 
-	authHandler := h.composeAuthHandler()
+	authHandler := h.composeAuthHandler(validation)
 
 	authGroup := v1.Group("auth")
 	{
 		authGroup.POST("/sign-up", authHandler.SignUp)
 		authGroup.POST("/sign-in", authHandler.SignIn)
 	}
-	accountHandler := h.composeAccount()
+	accountHandler := h.composeAccount(validation)
 	accountGroup := v1.Group("account")
 	accountGroup.Use(authMiddleware.Authorization())
 	{
@@ -109,14 +117,26 @@ func (h *Handler) runHttpsServer(r *gin.Engine) error {
 	)
 }
 
-func (h *Handler) composeAuthHandler() *v1.AuthHandler {
-	return v1.NewAuthHandler(h.container, h.accountUsecase)
+func (h *Handler) composeAuthHandler(validation validator.HttpValidator) *v1.AuthHandler {
+	return v1.NewAuthHandler(h.container, validation, h.accountUsecase)
 }
 
-func (h *Handler) composeAccount() *v1.AccountHandler {
-	return v1.NewAccountHandler(h.container, h.accountUsecase)
+func (h *Handler) composeAccount(validation validator.HttpValidator) *v1.AccountHandler {
+	return v1.NewAccountHandler(h.container, validation, h.accountUsecase)
 }
 
 func (h *Handler) composeCommon() *v1.CommonHandler {
 	return v1.NewCommonHandler(h.container, h.countryUsecase)
+}
+
+func (h *Handler) configureAndInitValidation() (validator.HttpValidator, error) {
+	validationEngine, ok := binding.Validator.Engine().(*v.Validate)
+	if !ok {
+		return nil, dto.CastTypeError
+	}
+	validator := validator.NewValidator(h.container)
+	if err := validator.Register(validationEngine); err != nil {
+		return nil, err
+	}
+	return validator, nil
 }

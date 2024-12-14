@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go-tonify-backend/internal/api/interface/http/dto"
 	"go-tonify-backend/internal/api/interface/http/v1/converter"
+	"go-tonify-backend/internal/api/interface/http/validator"
 	"go-tonify-backend/internal/container"
 	"go-tonify-backend/internal/domain/account/model"
 	"go-tonify-backend/internal/domain/account/usecase"
@@ -13,15 +14,18 @@ import (
 
 type AccountHandler struct {
 	container      container.Container
+	validation     validator.HttpValidator
 	accountUsecase usecase.Account
 }
 
 func NewAccountHandler(
 	container container.Container,
+	validation validator.HttpValidator,
 	accountUsecase usecase.Account,
 ) *AccountHandler {
 	return &AccountHandler{
 		container:      container,
+		validation:     validation,
 		accountUsecase: accountUsecase,
 	}
 }
@@ -114,7 +118,7 @@ func (a *AccountHandler) EditMy(ctx *gin.Context) {
 	var editAccountRequest dto.EditAccount
 	if err := ctx.ShouldBind(&editAccountRequest); err != nil {
 		log.Error("fail to bind edit account", logger.FError(err))
-		failResponse(ctx, http.StatusBadRequest, dto.BadRequestError, err)
+		badRequestResponse(ctx, a.validation, dto.BadRequestError, err)
 		return
 	}
 	var editAccount = model.EditAccount{
