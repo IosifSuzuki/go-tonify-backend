@@ -32,17 +32,20 @@ import (
 type Handler struct {
 	container      container.Container
 	accountUsecase accountUsecase.Account
+	matchUsecase   accountUsecase.Match
 	countryUsecase countryUsecase.Country
 }
 
 func NewHandler(
 	container container.Container,
 	accountUsecase accountUsecase.Account,
+	matchUsecase accountUsecase.Match,
 	countryUsecase countryUsecase.Country,
 ) *Handler {
 	return &Handler{
 		container:      container,
 		accountUsecase: accountUsecase,
+		matchUsecase:   matchUsecase,
 		countryUsecase: countryUsecase,
 	}
 }
@@ -78,8 +81,14 @@ func (h *Handler) Run() error {
 	{
 		accountGroup.GET("/my", accountHandler.GetMy)
 		accountGroup.PATCH("/edit", accountHandler.EditMy)
-		accountGroup.GET("/matching", accountHandler.MatchAccounts)
 		accountGroup.DELETE("/delete", accountHandler.DeleteMy)
+	}
+	matchHandler := h.composeMatch(validation)
+	matchGroup := v1.Group("match")
+	matchGroup.Use(authMiddleware.Authorization())
+	{
+		matchGroup.GET("/matchable/accounts", matchHandler.MatchableAccounts)
+		matchGroup.POST("/action/:action", matchHandler.MatchAction)
 	}
 	commonHandler := h.composeCommon()
 	commonGroup := v1.Group("/common")
@@ -127,6 +136,10 @@ func (h *Handler) composeAccount(validation validator.HttpValidator) *v1.Account
 
 func (h *Handler) composeCommon() *v1.CommonHandler {
 	return v1.NewCommonHandler(h.container, h.countryUsecase)
+}
+
+func (h *Handler) composeMatch(validation validator.HttpValidator) *v1.MatchHandler {
+	return v1.NewMatchHandler(h.container, validation, h.matchUsecase)
 }
 
 func (h *Handler) configureAndInitValidation() (validator.HttpValidator, error) {

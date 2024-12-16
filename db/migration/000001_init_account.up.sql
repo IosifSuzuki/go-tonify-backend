@@ -1,17 +1,17 @@
 CREATE TABLE IF NOT EXISTS attachment (
     id SERIAL PRIMARY KEY,
-    file_name TEXT,
+    file_name TEXT NOT NULL,
     path TEXT,
-    created_at TIMESTAMP,
+    created_at TIMESTAMP NOT NULL,
     updated_at TIMESTAMP,
     deleted_at TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS company (
     id SERIAL PRIMARY KEY,
-    name TEXT,
-    description TEXT,
-    created_at TIMESTAMP,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL,
     updated_at TIMESTAMP,
     deleted_at TIMESTAMP
 );
@@ -19,19 +19,19 @@ CREATE TABLE IF NOT EXISTS company (
 CREATE TABLE IF NOT EXISTS account (
     id SERIAL PRIMARY KEY,
     telegram_id TEXT UNIQUE,
-    first_name TEXT,
+    first_name TEXT NOT NULL,
     middle_name TEXT,
-    last_name TEXT,
-    nickname TEXT,
-    role VARCHAR(32),
-    about_me TEXT,
-    gender VARCHAR(127),
-    country TEXT,
-    location TEXT,
+    last_name TEXT NOT NULL,
+    nickname TEXT NOT NULL,
+    role VARCHAR(32) NOT NULL,
+    about_me TEXT NOT NULL,
+    gender VARCHAR(127) NOT NULL,
+    country TEXT NOT NULL,
+    location TEXT NOT NULL,
     avatar_id INT,
     document_id INT,
     company_id INT,
-    created_at TIMESTAMP,
+    created_at TIMESTAMP NOT NULL,
     updated_at TIMESTAMP,
     deleted_at TIMESTAMP,
     CONSTRAINT fk_avatar_id FOREIGN KEY(avatar_id) REFERENCES attachment(id) ON DELETE SET NULL,
