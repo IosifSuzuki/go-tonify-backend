@@ -27,6 +27,7 @@ type Account interface {
 	GetDetailsAccount(ctx context.Context, id int64) (*model.Account, error)
 	EditAccount(ctx context.Context, editAccount model.EditAccount) error
 	DeleteAccount(ctx context.Context, accountID int64) error
+	AccountHasRole(ctx context.Context, accountID int64, role model.Role) (bool, error)
 }
 
 type account struct {
@@ -425,6 +426,16 @@ func (a *account) GetDetailsAccount(ctx context.Context, id int64) (*model.Accou
 	}
 	accountModel := converter.ConvertEntity2AccountModel(account)
 	return accountModel, nil
+}
+
+func (a *account) AccountHasRole(ctx context.Context, accountID int64, role model.Role) (bool, error) {
+	log := a.container.GetLogger()
+	account, err := a.accountRepository.GetByID(ctx, accountID)
+	if err != nil {
+		log.Error("fail to get by id", logger.FError(err))
+		return false, nil
+	}
+	return account.Role.String() == string(role), nil
 }
 
 func (a *account) DeleteAccount(ctx context.Context, accountID int64) error {
