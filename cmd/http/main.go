@@ -11,6 +11,8 @@ import (
 	countryRepository "go-tonify-backend/internal/domain/country/repository"
 	countryUsecase "go-tonify-backend/internal/domain/country/usecase"
 	"go-tonify-backend/internal/domain/provider/transaction"
+	taskRepository "go-tonify-backend/internal/domain/task/repository"
+	taskUsecase "go-tonify-backend/internal/domain/task/usecase"
 	"go-tonify-backend/internal/infrastructure/config"
 	"go-tonify-backend/internal/infrastructure/filestorage/s3"
 	"go-tonify-backend/pkg/logger"
@@ -33,12 +35,14 @@ func main() {
 	attachmentRep := accountRepository.NewAttachment(cont.GetDBConnection())
 	_ = accountRepository.NewCompany(cont.GetDBConnection())
 	countryRep := countryRepository.NewCountry()
+	taskRep := taskRepository.NewTask(cont.GetDBConnection())
 
 	accountUc := accountUsecase.NewAccount(cont, fileStorage, accountRep, attachmentRep, transactionProvider)
 	matchUC := accountUsecase.NewMatch(cont, transactionProvider, accountRep)
 	countryUc := countryUsecase.NewCountry(cont, countryRep)
+	taskUc := taskUsecase.NewTask(cont, taskRep)
 
-	handler := v1.NewHandler(cont, accountUc, matchUC, countryUc)
+	handler := v1.NewHandler(cont, accountUc, matchUC, countryUc, taskUc)
 
 	if err := handler.Run(); err != nil {
 		log.Fatalln("fail to run handler", err)

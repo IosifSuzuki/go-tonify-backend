@@ -15,6 +15,7 @@ import (
 	"go-tonify-backend/internal/container"
 	accountUsecase "go-tonify-backend/internal/domain/account/usecase"
 	countryUsecase "go-tonify-backend/internal/domain/country/usecase"
+	taskUsecase "go-tonify-backend/internal/domain/task/usecase"
 	"go-tonify-backend/pkg/datetime"
 	"time"
 )
@@ -34,6 +35,7 @@ type Handler struct {
 	accountUsecase accountUsecase.Account
 	matchUsecase   accountUsecase.Match
 	countryUsecase countryUsecase.Country
+	taskUsecase    taskUsecase.Task
 }
 
 func NewHandler(
@@ -41,12 +43,14 @@ func NewHandler(
 	accountUsecase accountUsecase.Account,
 	matchUsecase accountUsecase.Match,
 	countryUsecase countryUsecase.Country,
+	taskUsecase taskUsecase.Task,
 ) *Handler {
 	return &Handler{
 		container:      container,
 		accountUsecase: accountUsecase,
 		matchUsecase:   matchUsecase,
 		countryUsecase: countryUsecase,
+		taskUsecase:    taskUsecase,
 	}
 }
 
@@ -60,6 +64,7 @@ func (h *Handler) Run() error {
 	loggerMiddleware := middleware.NewLogger(h.container)
 	corsMiddleware := middleware.NewCORS(h.container)
 	authMiddleware := middleware.NewAuth(h.container, h.accountUsecase)
+	roleMiddleware := middleware.NewRole(h.container, h.accountUsecase)
 
 	r.Use(corsMiddleware.CORS())
 	r.Use(loggerMiddleware.Logging())
@@ -89,6 +94,13 @@ func (h *Handler) Run() error {
 	{
 		matchGroup.GET("/matchable/accounts", matchHandler.MatchableAccounts)
 		matchGroup.POST("/action/:action", matchHandler.MatchAction)
+	}
+	taskHandler := h.composeTask(validation)
+	taskGroup := v1.Group("task")
+	taskGroup.Use(authMiddleware.Authorization())
+	{
+		taskGroup.POST("/create", roleMiddleware.Authorization(dto.ClientRole), taskHandler.CreateTask)
+		taskGroup.GET("/list", taskHandler.GetListTask)
 	}
 	commonHandler := h.composeCommon()
 	commonGroup := v1.Group("/common")
@@ -140,6 +152,10 @@ func (h *Handler) composeCommon() *v1.CommonHandler {
 
 func (h *Handler) composeMatch(validation validator.HttpValidator) *v1.MatchHandler {
 	return v1.NewMatchHandler(h.container, validation, h.matchUsecase)
+}
+
+func (h *Handler) composeTask(validator validator.HttpValidator) *v1.TaskHandler {
+	return v1.NewTaskHandler(h.container, validator, h.taskUsecase)
 }
 
 func (h *Handler) configureAndInitValidation() (validator.HttpValidator, error) {

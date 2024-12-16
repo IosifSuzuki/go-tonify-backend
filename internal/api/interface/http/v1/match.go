@@ -37,7 +37,7 @@ func NewMatchHandler(
 //	@Description	**Attention**: The rules may change from time to time. If you need more information about the endpoint, please contact API support
 //	@Tags			match
 //	@Param			Authorization	header		string					true	"account's access token"
-//	@Param			request			body		dto.GetMatchAccounts	true	"matching accounts parameters"
+//	@Param			limit			query		int						true	"pagination limit"
 //	@Produce		json
 //	@Success		200	{object}	dto.Response{response=[]dto.Account}	"list of matchable accounts"
 //	@Failure		400	{object}	dto.Response{response=dto.Empty}		"detailed error message"
@@ -55,7 +55,7 @@ func (m *MatchHandler) MatchableAccounts(ctx *gin.Context) {
 		return
 	}
 	var getMatchAccounts dto.GetMatchAccounts
-	if err := ctx.ShouldBindJSON(&getMatchAccounts); err != nil {
+	if err := ctx.ShouldBindQuery(&getMatchAccounts); err != nil {
 		log.Error("fail to bind get match accounts", logger.FError(err))
 		badRequestResponse(ctx, m.validation, dto.BadRequestError, err)
 		return
