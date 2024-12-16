@@ -28,15 +28,18 @@ func (a *Auth) Authorization() gin.HandlerFunc {
 		if len(tokenText) == 0 {
 			log.Error("missing authorization header value")
 			abortWithResponse(ctx, http.StatusUnauthorized, dto.MissingAuthorizationTokenError)
+			return
 		}
 		accountID, err := a.accountUsecase.ParseAccessToken(tokenText)
 		if err != nil {
 			log.Error("fail to parse / validate parse access token", logger.FError(err))
 			abortWithResponse(ctx, http.StatusUnauthorized, dto.ParseValidateTokenError)
+			return
 		}
 		if accountID == nil {
 			log.Error("account id has nil value", logger.FError(err))
 			abortWithResponse(ctx, http.StatusUnauthorized, dto.NilError)
+			return
 		}
 		ctx.Set(dto.AccountIDKey, *accountID)
 		ctx.Next()

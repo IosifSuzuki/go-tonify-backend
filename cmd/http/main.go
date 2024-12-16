@@ -35,9 +35,10 @@ func main() {
 	countryRep := countryRepository.NewCountry()
 
 	accountUc := accountUsecase.NewAccount(cont, fileStorage, accountRep, attachmentRep, transactionProvider)
+	matchUC := accountUsecase.NewMatch(cont, transactionProvider, accountRep)
 	countryUc := countryUsecase.NewCountry(cont, countryRep)
 
-	handler := v1.NewHandler(cont, accountUc, countryUc)
+	handler := v1.NewHandler(cont, accountUc, matchUC, countryUc)
 
 	if err := handler.Run(); err != nil {
 		log.Fatalln("fail to run handler", err)

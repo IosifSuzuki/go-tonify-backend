@@ -26,7 +26,6 @@ type Account interface {
 	ParseAccessToken(accessToken string) (*int64, error)
 	GetDetailsAccount(ctx context.Context, id int64) (*model.Account, error)
 	EditAccount(ctx context.Context, editAccount model.EditAccount) error
-	GetMatchAccounts(ctx context.Context, accountID int64, limit int64) ([]model.Account, error)
 	DeleteAccount(ctx context.Context, accountID int64) error
 }
 
@@ -473,36 +472,6 @@ func (a *account) DeleteAccount(ctx context.Context, accountID int64) error {
 		return err
 	}
 	return nil
-}
-
-func (a *account) GetMatchAccounts(ctx context.Context, accountID int64, limit int64) ([]model.Account, error) {
-	log := a.container.GetLogger()
-	accountEntity, err := a.accountRepository.GetByID(ctx, accountID)
-	if err != nil {
-		log.Error("fail to get account by id", logger.FError(err))
-		switch err {
-		case sql.ErrNoRows:
-			return nil, model.EntityNotFoundError
-		default:
-			return nil, err
-		}
-	}
-	accountEntities, err := a.accountRepository.GetMatchedAccounts(ctx, accountID, accountEntity.Role.Opposite(), limit)
-	if err != nil {
-		log.Error("fail to get matched accounts", logger.FError(err))
-		return nil, err
-	}
-	accounts := make([]model.Account, 0, len(accountEntities))
-	for _, accountEntity := range accountEntities {
-		err := a.accountRepository.SeenAccount(ctx, accountID, accountEntity.ID)
-		if err != nil {
-			log.Error("fail to mark account as seen", logger.FError(err))
-			return nil, err
-		}
-		account := converter.ConvertEntity2AccountModel(&accountEntity)
-		accounts = append(accounts, *account)
-	}
-	return accounts, nil
 }
 
 func (a *account) uploadAndPrepareAttachmentEntity(fileHeader *multipart.FileHeader) (*entity.Attachment, error) {

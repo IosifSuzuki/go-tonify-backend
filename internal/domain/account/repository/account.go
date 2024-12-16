@@ -18,9 +18,14 @@ type Account interface {
 	GetByTelegramID(ctx context.Context, telegramID int64) (*entity.Account, error)
 	Update(ctx context.Context, account *entity.Account) error
 	Delete(ctx context.Context, id int64) error
-	GetMatchedAccounts(ctx context.Context, accountID int64, role entity.Role, limit int64) ([]entity.Account, error)
-	ExistsSeenAccount(ctx context.Context, viewerAccountID, viewedAccountID int64) (bool, error)
-	SeenAccount(ctx context.Context, viewerAccountID, viewedAccountID int64) error
+	GetMatchableAccounts(ctx context.Context, accountID int64, role entity.Role, limit int64) ([]entity.Account, error)
+	ExistsLike(ctx context.Context, likeAccount entity.LikeAccount) (bool, error)
+	LikeAccount(ctx context.Context, likeAccount entity.LikeAccount) error
+	DeleteLikeAccount(ctx context.Context, likeAccount entity.LikeAccount) error
+	ExistsDislike(ctx context.Context, dislikeAccount entity.DislikeAccount) (bool, error)
+	DeleteDislikes(ctx context.Context, accountID int64, pastDays int64) error
+	DislikeAccount(ctx context.Context, dislikeAccount entity.DislikeAccount) error
+	DeleteDislikeAccount(ctx context.Context, likeAccount entity.DislikeAccount) error
 }
 
 type account struct {
@@ -577,7 +582,7 @@ func (a *account) Delete(ctx context.Context, id int64) error {
 	return err
 }
 
-func (a *account) GetMatchedAccounts(ctx context.Context, accountID int64, role entity.Role, limit int64) ([]entity.Account, error) {
+func (a *account) GetMatchableAccounts(ctx context.Context, accountID int64, role entity.Role, limit int64) ([]entity.Account, error) {
 	query := "SELECT" +
 		"	account.id, " +
 		"	account.telegram_id, " +
@@ -601,16 +606,16 @@ func (a *account) GetMatchedAccounts(ctx context.Context, accountID int64, role 
 		"	account.updated_at " +
 		"FROM" +
 		"	account " +
-		"LEFT JOIN account_seen ON account.id = account_seen.viewed_account_id" +
-		"	AND account_seen.viewer_account_id = $1 " +
 		"LEFT JOIN attachment as avatar ON account.avatar_id = avatar.id " +
+		"LEFT JOIN like_account ON like_account.liker_id = $1 AND account.id = like_account.liked_id " +
+		"LEFT JOIN dislike_account ON dislike_account.disliker_id = $2 AND account.id = dislike_account.disliked_id " +
 		"WHERE" +
-		"	account.role = $2" +
-		"	AND account.id != $3 " +
-		"ORDER BY" +
-		"	account_seen.rating ASC " +
-		"LIMIT $4;"
-	rows, err := a.conn.QueryContext(ctx, query, accountID, role.String(), accountID, limit)
+		"	account.role = $3 " +
+		"	AND account.id != $4 " +
+		"	AND like_account.id IS NULL " +
+		"	AND dislike_account.id IS NULL " +
+		"LIMIT $5;"
+	rows, err := a.conn.QueryContext(ctx, query, accountID, accountID, role.String(), accountID, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -718,30 +723,68 @@ func (a *account) GetMatchedAccounts(ctx context.Context, accountID int64, role 
 	return accounts, nil
 }
 
-func (a *account) ExistsSeenAccount(ctx context.Context, viewerAccountID int64, viewedAccountID int64) (bool, error) {
-	query := "SELECT EXISTS(SELECT 1 FROM account_seen WHERE viewer_account_id = $1 AND viewed_account_id = $2);"
+func (a *account) ExistsLike(ctx context.Context, likeAccount entity.LikeAccount) (bool, error) {
+	query := "SELECT EXISTS(SELECT 1 FROM like_account WHERE liker_id = $1 AND liked_id = $2);"
 	var exists bool
-	err := a.conn.QueryRowContext(ctx, query, viewerAccountID, viewedAccountID).Scan(&exists)
+	err := a.conn.QueryRowContext(ctx, query, likeAccount.LikerID, likeAccount.LikedID).Scan(&exists)
 	return exists, err
 }
 
-func (a *account) SeenAccount(ctx context.Context, viewerAccountID int64, viewedAccountID int64) error {
-	exist, err := a.ExistsSeenAccount(ctx, viewerAccountID, viewedAccountID)
+func (a *account) LikeAccount(ctx context.Context, likeAccount entity.LikeAccount) error {
+	query := "INSERT INTO like_account (liker_id, liked_id) VALUES ($1, $2);"
+	_, err := a.conn.ExecContext(ctx, query, likeAccount.LikerID, likeAccount.LikedID)
 	if err != nil {
 		return err
 	}
-	if exist {
-		query := "UPDATE account_seen SET " +
-			"	rating = rating + 1 " +
-			"WHERE viewer_account_id = $1 AND viewed_account_id = $2;"
-		_, err := a.conn.ExecContext(ctx, query, viewerAccountID, viewedAccountID)
-		if err != nil {
-			return err
-		}
-		return nil
+	return nil
+}
+
+func (a *account) DeleteLikeAccount(ctx context.Context, likeAccount entity.LikeAccount) error {
+	query := `
+		DELETE FROM like_account
+		WHERE liker_id = $1 AND liked_id = $2
+	`
+	_, err := a.conn.ExecContext(ctx, query, likeAccount.LikerID, likeAccount.LikedID)
+	if err != nil {
+		return err
 	}
-	query := "INSERT INTO account_seen (viewer_account_id, viewed_account_id, rating) VALUES ($1, $2, $3);"
-	_, err = a.conn.ExecContext(ctx, query, viewerAccountID, viewedAccountID, 0)
+	return nil
+}
+
+func (a *account) ExistsDislike(ctx context.Context, dislikeAccount entity.DislikeAccount) (bool, error) {
+	query := "SELECT EXISTS(SELECT 1 FROM dislike_account WHERE disliker_id = $1 AND disliked_id = $2);"
+	var exists bool
+	err := a.conn.QueryRowContext(ctx, query, dislikeAccount.DislikerID, dislikeAccount.DislikedID).Scan(&exists)
+	return exists, err
+}
+
+func (a *account) DislikeAccount(ctx context.Context, dislikeAccount entity.DislikeAccount) error {
+	query := "INSERT INTO dislike_account (disliker_id, disliked_id) VALUES ($1, $2);"
+	_, err := a.conn.ExecContext(ctx, query, dislikeAccount.DislikerID, dislikeAccount.DislikedID)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (a *account) DeleteDislikeAccount(ctx context.Context, dislikeAccount entity.DislikeAccount) error {
+	query := `
+		DELETE FROM dislike_account
+		WHERE disliker_id = $1 AND disliked_id = $2
+	`
+	_, err := a.conn.ExecContext(ctx, query, dislikeAccount.DislikerID, dislikeAccount.DislikedID)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (a *account) DeleteDislikes(ctx context.Context, accountID int64, pastDays int64) error {
+	query := `
+		DELETE FROM dislike_account
+		WHERE created_at <= NOW() - ($1 || ' days')::INTERVAL AND disliker_id = $2
+	`
+	_, err := a.conn.ExecContext(ctx, query, pastDays, accountID)
 	if err != nil {
 		return err
 	}
