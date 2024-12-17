@@ -9,6 +9,7 @@ import (
 	"go-tonify-backend/internal/domain/account/model"
 	"go-tonify-backend/internal/domain/account/usecase"
 	"go-tonify-backend/pkg/logger"
+	"mime/multipart"
 	"net/http"
 )
 
@@ -48,10 +49,11 @@ func NewAuthHandler(
 //	@Param			gender				formData	string									true	"gender"	Enums(male, female)
 //	@Param			country				formData	string									true	"country"
 //	@Param			location			formData	string									true	"location"
+//	@Param			tags				formData	[]string								false	"tags"
 //	@Param			company_name		formData	string									false	"company name"
 //	@Param			company_description	formData	string									false	"company description"
-//	@Param			avatar				formData	file									true	"avatar file"
-//	@Param			document			formData	file									true	"document file "
+//	@Param			avatar				formData	file									false	"avatar file"
+//	@Param			document			formData	file									false	"document file"
 //	@Success		201					{object}	dto.Response{response=dto.PairToken}	"access & refresh tokens"
 //	@Failure		400					{object}	dto.Response{response=dto.Empty}		"detailed error message"
 //	@Failure		409					{object}	dto.Response{response=dto.Empty}		"detailed error message, provided data already exist"
@@ -59,23 +61,32 @@ func NewAuthHandler(
 //	@Router			/v1/auth/sign-up [post]
 func (a *AuthHandler) SignUp(ctx *gin.Context) {
 	log := a.container.GetLogger()
-	var createAccountRequest dto.CreateAccount
-	if err := ctx.ShouldBind(&createAccountRequest); err != nil {
+	var (
+		createAccountRequest dto.CreateAccount
+		avatarFileHeader     *multipart.FileHeader
+		documentFileHeader   *multipart.FileHeader
+	)
+	err := ctx.ShouldBind(&createAccountRequest)
+	if err != nil {
 		log.Error("fail to parse/validate request model", logger.FError(err))
 		badRequestResponse(ctx, a.validation, dto.BadRequestError, err)
 		return
 	}
-	avatarFileHeader, err := ctx.FormFile("avatar")
-	if err != nil {
-		log.Error("fail to retrieve avatar file header", logger.FError(err))
-		failResponse(ctx, http.StatusBadRequest, dto.BadRequestError, err)
-		return
+	if ctx.Request.Form.Has("avatar") {
+		avatarFileHeader, err = ctx.FormFile("avatar")
+		if err != nil {
+			log.Error("fail to retrieve avatar file header", logger.FError(err))
+			failResponse(ctx, http.StatusBadRequest, dto.BadRequestError, err)
+			return
+		}
 	}
-	documentFileHeader, err := ctx.FormFile("document")
-	if err != nil {
-		log.Error("fail to retrieve document file header", logger.FError(err))
-		failResponse(ctx, http.StatusBadRequest, dto.BadRequestError, err)
-		return
+	if ctx.Request.Form.Has("document") {
+		documentFileHeader, err = ctx.FormFile("document")
+		if err != nil {
+			log.Error("fail to retrieve document file header", logger.FError(err))
+			failResponse(ctx, http.StatusBadRequest, dto.BadRequestError, err)
+			return
+		}
 	}
 	createAccount := model.CreateAccount{
 		TelegramInitData:   createAccountRequest.TelegramInitData,
@@ -88,6 +99,7 @@ func (a *AuthHandler) SignUp(ctx *gin.Context) {
 		Gender:             string(createAccountRequest.Gender),
 		Country:            createAccountRequest.Country,
 		Location:           createAccountRequest.Location,
+		Tags:               createAccountRequest.Tags,
 		CompanyName:        createAccountRequest.CompanyName,
 		CompanyDescription: createAccountRequest.CompanyDescription,
 		AvatarFileHeader:   avatarFileHeader,

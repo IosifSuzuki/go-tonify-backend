@@ -17,6 +17,7 @@ import (
 	"go-tonify-backend/pkg/logger"
 	"go-tonify-backend/pkg/telegram"
 	"mime/multipart"
+	"strings"
 )
 
 type Account interface {
@@ -35,6 +36,7 @@ type account struct {
 	fileStorage          filestorage.FileStorage
 	accountRepository    repository.Account
 	attachmentRepository repository.Attachment
+	tagRepository        repository.Tag
 	transactionProvider  *transaction.Provider
 }
 
@@ -48,6 +50,7 @@ func NewAccount(
 	fileStorage filestorage.FileStorage,
 	accountRepository repository.Account,
 	attachmentRepository repository.Attachment,
+	tagRepository repository.Tag,
 	transactionProvider *transaction.Provider,
 ) Account {
 	return &account{
@@ -55,6 +58,7 @@ func NewAccount(
 		fileStorage:          fileStorage,
 		accountRepository:    accountRepository,
 		attachmentRepository: attachmentRepository,
+		tagRepository:        tagRepository,
 		transactionProvider:  transactionProvider,
 	}
 }
@@ -134,33 +138,59 @@ func (a *account) CreateAccount(ctx context.Context, createAccount model.CreateA
 				return model.NilError
 			}
 		}
-		avatarAttachmentEntity, err = a.uploadAndPrepareAttachmentEntity(createAccount.AvatarFileHeader)
-		if err != nil {
-			log.Error("fail to upload and prepare a avatar attachment entity", logger.FError(err))
-			return err
+		avatarFileHeader := createAccount.AvatarFileHeader
+		documentFileHeader := createAccount.DocumentFileHeader
+		if avatarFileHeader != nil {
+			avatarAttachmentEntity, err = a.uploadAndPrepareAttachmentEntity(avatarFileHeader)
+			if err != nil {
+				log.Error("fail to upload and prepare a avatar attachment entity", logger.FError(err))
+				return err
+			}
+			if avatarAttachmentEntity == nil {
+				log.Error("avatar attachment has nil value", logger.FError(err))
+				return model.NilError
+			}
+			avatarAttachmentEntityID, err := composed.Attachment.Create(ctx, avatarAttachmentEntity)
+			if err != nil {
+				log.Error("fail to record avatar attachment to db", logger.FError(err))
+				return err
+			}
+			if avatarAttachmentEntityID == nil {
+				log.Error("avatarAttachmentEntityID contains nil value")
+				return model.NilError
+			}
+			avatarAttachmentEntity.ID = *avatarAttachmentEntityID
 		}
-		if avatarAttachmentEntity == nil {
-			log.Error("avatar attachment has nil value", logger.FError(err))
-			return model.NilError
+		if documentFileHeader != nil {
+			documentAttachmentEntity, err = a.uploadAndPrepareAttachmentEntity(documentFileHeader)
+			if err != nil {
+				log.Error("fail to upload and prepare a document attachment entity", logger.FError(err))
+				return err
+			}
+			if documentAttachmentEntity == nil {
+				log.Error("document attachment has nil value", logger.FError(err))
+				return model.NilError
+			}
+			documentAttachmentEntityID, err := composed.Attachment.Create(ctx, documentAttachmentEntity)
+			if err != nil {
+				log.Error("fail to record document attachment to db", logger.FError(err))
+				return err
+			}
+			if documentAttachmentEntityID == nil {
+				log.Error("documentAttachmentEntityID contains nil value")
+				return model.NilError
+			}
+			documentAttachmentEntity.ID = *documentAttachmentEntityID
 		}
-		documentAttachmentEntity, err = a.uploadAndPrepareAttachmentEntity(createAccount.DocumentFileHeader)
-		if err != nil {
-			log.Error("fail to upload and prepare a document attachment entity", logger.FError(err))
-			return err
+		var (
+			avatarAttachmentEntityID   *int64
+			documentAttachmentEntityID *int64
+		)
+		if avatarAttachmentEntity != nil {
+			avatarAttachmentEntityID = &avatarAttachmentEntity.ID
 		}
-		if documentAttachmentEntity == nil {
-			log.Error("document attachment has nil value", logger.FError(err))
-			return model.NilError
-		}
-		avatarAttachmentEntityID, err := composed.Attachment.Create(ctx, avatarAttachmentEntity)
-		if err != nil {
-			log.Error("fail to record avatar attachment to db", logger.FError(err))
-			return err
-		}
-		documentAttachmentEntityID, err := composed.Attachment.Create(ctx, documentAttachmentEntity)
-		if err != nil {
-			log.Error("fail to record document attachment to db", logger.FError(err))
-			return err
+		if documentAttachmentEntity != nil {
+			documentAttachmentEntityID = &documentAttachmentEntity.ID
 		}
 		accountEntity := entity.Account{
 			TelegramID:           telegramInitModel.TelegramUser.ID,
@@ -181,6 +211,19 @@ func (a *account) CreateAccount(ctx context.Context, createAccount model.CreateA
 		if err != nil {
 			log.Error("fail to record account in db", logger.FError(err))
 			return err
+		}
+		if createAccount.HasTags() {
+			tags := convertTags(*createAccount.Tags)
+			for _, tag := range tags {
+				tagEntity := entity.Tag{
+					Title: tag,
+				}
+				_, err = composed.Tag.Create(ctx, &tagEntity, *accountID)
+				if err != nil {
+					log.Error("fail to create/add tag to account", logger.FError(err))
+					return err
+				}
+			}
 		}
 		return nil
 	})
@@ -416,7 +459,7 @@ func (a *account) GetDetailsAccount(ctx context.Context, id int64) (*model.Accou
 	log := a.container.GetLogger()
 	account, err := a.accountRepository.GetFullDetailByID(ctx, id)
 	if err != nil {
-		log.Error("fail to get account by id")
+		log.Error("fail to get account by id", logger.FError(err))
 		switch err {
 		case sql.ErrNoRows:
 			return nil, model.EntityNotFoundError
@@ -424,7 +467,17 @@ func (a *account) GetDetailsAccount(ctx context.Context, id int64) (*model.Accou
 			return nil, err
 		}
 	}
+	tags, err := a.tagRepository.GetTagsByAccountID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	tagModels := make([]model.Tag, 0, len(tags))
+	for _, tag := range tags {
+		tagModel := converter.ConvertEntity2TagModel(&tag)
+		tagModels = append(tagModels, *tagModel)
+	}
 	accountModel := converter.ConvertEntity2AccountModel(account)
+	accountModel.Tags = &tagModels
 	return accountModel, nil
 }
 
@@ -529,4 +582,13 @@ func (a *account) unpackFileHeader(fileHeader *multipart.FileHeader) (*uploadFil
 		Name: fmt.Sprintf("%s%s", fileName, *fileExt),
 		File: file,
 	}, nil
+}
+
+func convertTags(tags []string) []string {
+	convertedTags := make([]string, 0, len(tags))
+	for _, tag := range tags {
+		editedTag := strings.TrimSpace(strings.ToLower(tag))
+		convertedTags = append(convertedTags, editedTag)
+	}
+	return convertedTags
 }

@@ -312,9 +312,9 @@ func (a *account) GetFullDetailByID(ctx context.Context, id int64) (*entity.Acco
 		"	account.created_at," +
 		"	account.updated_at " +
 		"FROM account " +
-		"	JOIN company ON account.company_id = company.id " +
-		"	JOIN attachment as avatar ON account.avatar_id = avatar.id " +
-		"	JOIN attachment as document ON account.document_id = document.id " +
+		"	LEFT JOIN company ON account.company_id = company.id " +
+		"	LEFT JOIN attachment as avatar ON account.avatar_id = avatar.id " +
+		"	LEFT JOIN attachment as document ON account.document_id = document.id " +
 		"WHERE account.id = $1 AND account.deleted_at IS NULL;"
 	row := a.conn.QueryRowContext(ctx, query, id)
 	var (
