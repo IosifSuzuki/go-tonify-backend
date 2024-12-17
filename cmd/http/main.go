@@ -36,9 +36,10 @@ func main() {
 	_ = accountRepository.NewCompany(cont.GetDBConnection())
 	countryRep := countryRepository.NewCountry()
 	taskRep := taskRepository.NewTask(cont.GetDBConnection())
+	tagRep := accountRepository.NewTag(cont.GetDBConnection())
 
-	accountUc := accountUsecase.NewAccount(cont, fileStorage, accountRep, attachmentRep, transactionProvider)
-	matchUC := accountUsecase.NewMatch(cont, transactionProvider, accountRep)
+	accountUc := accountUsecase.NewAccount(cont, fileStorage, accountRep, attachmentRep, tagRep, transactionProvider)
+	matchUC := accountUsecase.NewMatch(cont, transactionProvider, accountRep, tagRep)
 	countryUc := countryUsecase.NewCountry(cont, countryRep)
 	taskUc := taskUsecase.NewTask(cont, taskRep)
 

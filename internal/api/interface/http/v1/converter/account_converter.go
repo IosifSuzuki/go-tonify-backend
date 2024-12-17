@@ -40,5 +40,9 @@ func ConvertModel2AccountResponse(accountModel *model.Account) *dto.Account {
 		documentAttachment := ConvertModel2AttachmentResponse(accountModel.DocumentAttachment)
 		account.DocumentAttachment = documentAttachment
 	}
+	if accountModel.Tags != nil {
+		tags := ConvertModels2TagsResponse(*accountModel.Tags)
+		account.Tags = &tags
+	}
 	return &account
 }

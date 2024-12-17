@@ -16,6 +16,7 @@ type Account struct {
 	Gender             string
 	Country            *string
 	Location           *string
+	Tags               *[]Tag
 	Company            *Company
 	AvatarAttachment   *Attachment
 	DocumentAttachment *Attachment

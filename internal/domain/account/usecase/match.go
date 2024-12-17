@@ -21,17 +21,20 @@ type match struct {
 	container           container.Container
 	transactionProvider *transaction.Provider
 	accountRepository   repository.Account
+	tagRepository       repository.Tag
 }
 
 func NewMatch(
 	container container.Container,
 	transactionProvider *transaction.Provider,
 	accountRepository repository.Account,
+	tagRepository repository.Tag,
 ) Match {
 	return &match{
 		container:           container,
 		transactionProvider: transactionProvider,
 		accountRepository:   accountRepository,
+		tagRepository:       tagRepository,
 	}
 }
 
@@ -59,6 +62,16 @@ func (m *match) MatchableAccounts(ctx context.Context, accountID int64, limit in
 	accounts := make([]model.Account, 0, len(accountEntities))
 	for _, accountEntity := range accountEntities {
 		account := converter.ConvertEntity2AccountModel(&accountEntity)
+		tagEntities, err := m.tagRepository.GetTagsByAccountID(ctx, accountEntity.ID)
+		if err != nil {
+			log.Error(
+				"fail to get tags by account id",
+				logger.FError(err),
+				logger.F("account_id", accountEntity.ID),
+			)
+		}
+		tags := converter.ConvertEntities2TagModels(tagEntities)
+		account.Tags = &tags
 		accounts = append(accounts, *account)
 	}
 	return accounts, nil
