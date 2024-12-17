@@ -29,6 +29,7 @@ type Account interface {
 	EditAccount(ctx context.Context, editAccount model.EditAccount) error
 	DeleteAccount(ctx context.Context, accountID int64) error
 	AccountHasRole(ctx context.Context, accountID int64, role model.Role) (bool, error)
+	ChangeRole(ctx context.Context, accountID int64, role model.Role) error
 }
 
 type account struct {
@@ -533,6 +534,24 @@ func (a *account) DeleteAccount(ctx context.Context, accountID int64) error {
 	})
 	if err != nil {
 		log.Error("fail to delete a account and associate data to it from db", logger.FError(err))
+		return err
+	}
+	return nil
+}
+func (a *account) ChangeRole(ctx context.Context, accountID int64, role model.Role) error {
+	log := a.container.GetLogger()
+	accountEntity, err := a.accountRepository.GetByID(ctx, accountID)
+	if err != nil {
+		log.Error("fail to get account by id", logger.FError(err))
+		return err
+	}
+	accountEntity.Role, err = entity.RoleFromString(string(role))
+	if err != nil {
+		log.Error("fail to parse role", logger.FError(err))
+		return err
+	}
+	if err = a.accountRepository.Update(ctx, accountEntity); err != nil {
+		log.Error("fail to update account", logger.FError(err))
 		return err
 	}
 	return nil

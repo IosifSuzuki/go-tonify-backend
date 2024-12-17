@@ -86,6 +86,7 @@ func (h *Handler) Run() error {
 	{
 		accountGroup.GET("/my", accountHandler.GetMy)
 		accountGroup.PATCH("/edit", accountHandler.EditMy)
+		accountGroup.PATCH("/change/role", accountHandler.ChangeRole)
 		accountGroup.DELETE("/delete", accountHandler.DeleteMy)
 	}
 	matchHandler := h.composeMatch(validation)
