@@ -162,6 +162,61 @@ func (a *AccountHandler) EditMy(ctx *gin.Context) {
 	successResponse(ctx, http.StatusOK, account)
 }
 
+// ChangeRole godoc
+//
+//	@Summary		Change role for my account
+//	@Description	A user will change their own role
+//	@Tags			account
+//	@Accept			json
+//	@Produce		json
+//	@Param			Authorization	header		string					true	"account's access token"
+//	@Param			request			body		dto.ChangeRole			true	"parameter with new role"
+//	@Success		200	{object}	dto.Response{response=dto.Account}	"updated account details"
+//	@Failure		400	{object}	dto.Response{response=dto.Empty}	"detailed error message"
+//	@Failure		401	{object}	dto.Response{response=dto.Empty}	"the authorization token is invalid/expired/missing"
+//	@Failure		410	{object}	dto.Response{response=dto.Empty}	"account does not exist or has been deleted"
+//	@Failure		500	{object}	dto.Response{response=dto.Empty}	"detailed error message"
+//	@Router			/v1/account/change/role [patch]
+//	@Security		ApiKeyAuth
+func (a *AccountHandler) ChangeRole(ctx *gin.Context) {
+	log := a.container.GetLogger()
+	accountID, err := getAccountID(ctx)
+	if err != nil {
+		log.Error("fail to get account id", logger.FError(err))
+		failResponse(ctx, http.StatusBadRequest, err, nil)
+		return
+	}
+	var changeRole dto.ChangeRole
+	if err := ctx.ShouldBind(&changeRole); err != nil {
+		log.Error("fail to bind request model", logger.FError(err))
+		badRequestResponse(ctx, a.validation, dto.BadRequestError, err)
+		return
+	}
+	role := converter.ConvertDto2RoleModel(changeRole.NewRole)
+	if err := a.accountUsecase.ChangeRole(ctx, *accountID, role); err != nil {
+		log.Error(
+			"fail to change role for account",
+			logger.F("account_id", *accountID),
+			logger.FError(err),
+		)
+		failResponse(ctx, http.StatusInternalServerError, dto.FailProcessRequestError, err)
+		return
+	}
+	accountModel, err := a.accountUsecase.GetDetailsAccount(ctx, *accountID)
+	if err != nil {
+		log.Error("fail to get account by id", logger.F("account_id", accountID), logger.FError(err))
+		switch err {
+		case model.EntityNotFoundError:
+			failResponse(ctx, http.StatusGone, dto.ModelNotFoundError, err)
+		default:
+			failResponse(ctx, http.StatusInternalServerError, dto.FailProcessRequestError, err)
+		}
+		return
+	}
+	account := converter.ConvertModel2AccountResponse(accountModel)
+	successResponse(ctx, http.StatusOK, account)
+}
+
 // DeleteMy godoc
 //
 //	@Summary		Delete my account
