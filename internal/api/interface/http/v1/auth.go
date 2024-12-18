@@ -72,7 +72,12 @@ func (a *AuthHandler) SignUp(ctx *gin.Context) {
 		badRequestResponse(ctx, a.validation, dto.BadRequestError, err)
 		return
 	}
-	if ctx.Request.Form.Has("avatar") {
+	if err := ctx.Request.ParseMultipartForm(50 << 20); err != nil {
+		log.Error("fail to Parse multipart form", logger.FError(err))
+		failResponse(ctx, http.StatusBadRequest, dto.BadRequestError, err)
+	}
+	if _, ok := ctx.Request.MultipartForm.File["avatar"]; ok {
+		log.Debug("has avatar")
 		avatarFileHeader, err = ctx.FormFile("avatar")
 		if err != nil {
 			log.Error("fail to retrieve avatar file header", logger.FError(err))
@@ -80,7 +85,7 @@ func (a *AuthHandler) SignUp(ctx *gin.Context) {
 			return
 		}
 	}
-	if ctx.Request.Form.Has("document") {
+	if _, ok := ctx.Request.MultipartForm.File["document"]; ok {
 		documentFileHeader, err = ctx.FormFile("document")
 		if err != nil {
 			log.Error("fail to retrieve document file header", logger.FError(err))
