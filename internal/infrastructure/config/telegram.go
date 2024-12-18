@@ -7,7 +7,8 @@ import (
 )
 
 type Telegram struct {
-	BotToken string
+	BotToken   string
+	MiniAppURL string
 }
 
 var (
@@ -23,6 +24,11 @@ func GetTelegram() (*Telegram, error) {
 			ok       bool
 		)
 		instance.BotToken, ok = os.LookupEnv("TELEGRAM_BOT_TOKEN")
+		if !ok {
+			telegramError = entity.NilError
+			return
+		}
+		instance.MiniAppURL, ok = os.LookupEnv("TELEGRAM_BOT_MINI_APP_URL")
 		if !ok {
 			telegramError = entity.NilError
 			return
