@@ -10,6 +10,7 @@ import (
 type Container interface {
 	GetLogger() logger.Logger
 	GetTelegramBotToken() string
+	GetTelegramMiniAppURL() string
 	GetAWSConfig() *config.AWS
 	GetDBConnection() *sql.DB
 	GetJWTSecretKey() string
@@ -38,6 +39,10 @@ func NewContainer(
 
 func (c *container) GetTelegramBotToken() string {
 	return c.config.Telegram.BotToken
+}
+
+func (c *container) GetTelegramMiniAppURL() string {
+	return c.config.Telegram.MiniAppURL
 }
 
 func (c *container) GetAWSConfig() *config.AWS {

@@ -110,6 +110,12 @@ func (h *Handler) Run() error {
 		commonGroup.GET("/countries", commonHandler.Countries)
 	}
 
+	telegramBotHandler := h.composeTelegramBot()
+	telegramBotGroup := r.Group("/telegram/bot")
+	{
+		telegramBotGroup.POST("/update", telegramBotHandler.Update)
+	}
+
 	r.GET("/docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	go h.runHttpServer(r)
@@ -157,6 +163,10 @@ func (h *Handler) composeMatch(validation validator.HttpValidator) *v1.MatchHand
 
 func (h *Handler) composeTask(validator validator.HttpValidator) *v1.TaskHandler {
 	return v1.NewTaskHandler(h.container, validator, h.taskUsecase)
+}
+
+func (h *Handler) composeTelegramBot() *v1.TelegramBotHandler {
+	return v1.NewTelegramBotHandler(h.container)
 }
 
 func (h *Handler) configureAndInitValidation() (validator.HttpValidator, error) {
