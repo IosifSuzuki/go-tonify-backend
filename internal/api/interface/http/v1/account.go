@@ -9,6 +9,7 @@ import (
 	"go-tonify-backend/internal/domain/account/model"
 	"go-tonify-backend/internal/domain/account/usecase"
 	"go-tonify-backend/pkg/logger"
+	"mime/multipart"
 	"net/http"
 )
 
@@ -103,17 +104,29 @@ func (a *AccountHandler) EditMy(ctx *gin.Context) {
 		failResponse(ctx, http.StatusBadRequest, err, nil)
 		return
 	}
-	avatarFileHeader, err := ctx.FormFile("avatar")
-	if err != nil {
-		log.Error("can't retrieve a avatar file from form", logger.FError(err))
+	var (
+		avatarFileHeader   *multipart.FileHeader
+		documentFileHeader *multipart.FileHeader
+	)
+	if err := ctx.Request.ParseMultipartForm(50 << 20); err != nil {
+		log.Error("fail to Parse multipart form", logger.FError(err))
 		failResponse(ctx, http.StatusBadRequest, dto.BadRequestError, err)
-		return
 	}
-	documentFileHeader, err := ctx.FormFile("document")
-	if err != nil {
-		log.Error("can't retrieve a document file from form", logger.FError(err))
-		failResponse(ctx, http.StatusBadRequest, dto.BadRequestError, err)
-		return
+	if _, ok := ctx.Request.MultipartForm.File["avatar"]; ok {
+		avatarFileHeader, err = ctx.FormFile("avatar")
+		if err != nil {
+			log.Error("fail to retrieve avatar file header", logger.FError(err))
+			failResponse(ctx, http.StatusBadRequest, dto.BadRequestError, err)
+			return
+		}
+	}
+	if _, ok := ctx.Request.MultipartForm.File["document"]; ok {
+		documentFileHeader, err = ctx.FormFile("document")
+		if err != nil {
+			log.Error("fail to retrieve document file header", logger.FError(err))
+			failResponse(ctx, http.StatusBadRequest, dto.BadRequestError, err)
+			return
+		}
 	}
 	var editAccountRequest dto.EditAccount
 	if err := ctx.ShouldBind(&editAccountRequest); err != nil {

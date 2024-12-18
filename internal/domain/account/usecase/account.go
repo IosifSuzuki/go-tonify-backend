@@ -205,8 +205,8 @@ func (a *account) CreateAccount(ctx context.Context, createAccount model.CreateA
 			Country:              &createAccount.Country,
 			Location:             &createAccount.Location,
 			CompanyID:            companyID,
-			DocumentAttachmentID: avatarAttachmentEntityID,
-			AvatarAttachmentID:   documentAttachmentEntityID,
+			DocumentAttachmentID: documentAttachmentEntityID,
+			AvatarAttachmentID:   avatarAttachmentEntityID,
 		}
 		accountID, err = composed.Account.Create(ctx, &accountEntity)
 		if err != nil {
@@ -274,12 +274,16 @@ func (a *account) EditAccount(ctx context.Context, editAccount model.EditAccount
 				return err
 			}
 		}
-		if account.AvatarAttachmentID == nil || account.DocumentAttachmentID == nil {
-			log.Error("both avatar and document are required for edit a account")
-			return model.NilError
+		var (
+			oldAvatarFileName   *string
+			oldDocumentFileName *string
+		)
+		if account.AvatarAttachment != nil {
+			oldAvatarFileName = &account.AvatarAttachment.FileName
 		}
-		var oldAvatarFileName = account.AvatarAttachment.FileName
-		var oldDocumentFileName = account.DocumentAttachment.FileName
+		if account.DocumentAttachment != nil {
+			oldDocumentFileName = &account.DocumentAttachment.FileName
+		}
 		if account.HasCompany() && editAccount.HasCompany() {
 			company := account.Company
 			if name := editAccount.CompanyName; name != nil {
@@ -322,36 +326,64 @@ func (a *account) EditAccount(ctx context.Context, editAccount model.EditAccount
 			account.CompanyID = companyID
 			account.Company = newCompany
 		}
-		newAvatarAttachmentEntity, err = a.uploadAndPrepareAttachmentEntity(editAccount.AvatarFileHeader)
-		if err != nil {
-			log.Error(
-				"fail to upload avatar attachment and prepare entity for db",
-				logger.FError(err),
-			)
-			return err
+		if editAccount.AvatarFileHeader != nil {
+			newAvatarAttachmentEntity, err = a.uploadAndPrepareAttachmentEntity(editAccount.AvatarFileHeader)
+			if err != nil {
+				log.Error(
+					"fail to upload avatar attachment and prepare entity for db",
+					logger.FError(err),
+				)
+				return err
+			}
+			if account.AvatarAttachmentID != nil {
+				newAvatarAttachmentEntity.ID = *account.AvatarAttachmentID
+				if err := a.attachmentRepository.Update(ctx, newAvatarAttachmentEntity); err != nil {
+					log.Error(
+						"fail to update a avatar attachment in db",
+						logger.F("avatar_id", newAvatarAttachmentEntity.ID),
+						logger.FError(err),
+					)
+					return err
+				}
+			} else {
+				avatarAttachmentID, err := a.attachmentRepository.Create(ctx, newAvatarAttachmentEntity)
+				if err != nil {
+					log.Error(
+						"fail to create a avatar attachment in db",
+						logger.FError(err),
+					)
+					return err
+				}
+				account.AvatarAttachmentID = avatarAttachmentID
+			}
 		}
-		newAvatarAttachmentEntity.ID = *account.AvatarAttachmentID
-		if err := a.attachmentRepository.Update(ctx, newAvatarAttachmentEntity); err != nil {
-			log.Error(
-				"fail to update a avatar attachment in db",
-				logger.F("avatar_id", newAvatarAttachmentEntity.ID),
-				logger.FError(err),
-			)
-			return err
-		}
-		newDocumentAttachmentEntity, err = a.uploadAndPrepareAttachmentEntity(editAccount.DocumentFileHeader)
-		if err != nil {
-			log.Error("fail to upload document attachment and prepare entity for db", logger.FError(err))
-			return err
-		}
-		newDocumentAttachmentEntity.ID = *account.DocumentAttachmentID
-		if err := a.attachmentRepository.Update(ctx, newDocumentAttachmentEntity); err != nil {
-			log.Error(
-				"fail to update a document attachment in db",
-				logger.F("document_id", newDocumentAttachmentEntity.ID),
-				logger.FError(err),
-			)
-			return err
+		if editAccount.DocumentFileHeader != nil {
+			newDocumentAttachmentEntity, err = a.uploadAndPrepareAttachmentEntity(editAccount.DocumentFileHeader)
+			if err != nil {
+				log.Error("fail to upload document attachment and prepare entity for db", logger.FError(err))
+				return err
+			}
+			if account.DocumentAttachmentID != nil {
+				newDocumentAttachmentEntity.ID = *account.DocumentAttachmentID
+				if err := a.attachmentRepository.Update(ctx, newDocumentAttachmentEntity); err != nil {
+					log.Error(
+						"fail to update a document attachment in db",
+						logger.F("document_id", newDocumentAttachmentEntity.ID),
+						logger.FError(err),
+					)
+					return err
+				}
+			} else {
+				documentAttachmentID, err := a.attachmentRepository.Create(ctx, newDocumentAttachmentEntity)
+				if err != nil {
+					log.Error(
+						"fail to create a document attachment in db",
+						logger.FError(err),
+					)
+					return err
+				}
+				account.DocumentAttachmentID = documentAttachmentID
+			}
 		}
 		account.FirstName = editAccount.FirstName
 		account.MiddleName = editAccount.MiddleName
@@ -366,8 +398,12 @@ func (a *account) EditAccount(ctx context.Context, editAccount model.EditAccount
 			log.Error("fail to update entity", logger.FError(err))
 			return err
 		}
-		removeAvatarFilename = &oldAvatarFileName
-		removeDocumentFilename = &oldDocumentFileName
+		if oldAvatarFileName != nil {
+			removeAvatarFilename = oldAvatarFileName
+		}
+		if oldDocumentFileName != nil {
+			removeDocumentFilename = oldDocumentFileName
+		}
 		return nil
 	})
 	if err != nil && newAvatarAttachmentEntity != nil {
