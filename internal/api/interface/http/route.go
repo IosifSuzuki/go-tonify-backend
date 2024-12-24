@@ -14,6 +14,7 @@ import (
 	"go-tonify-backend/internal/api/interface/http/validator"
 	"go-tonify-backend/internal/container"
 	accountUsecase "go-tonify-backend/internal/domain/account/usecase"
+	categoryUsecase "go-tonify-backend/internal/domain/category/usecase"
 	countryUsecase "go-tonify-backend/internal/domain/country/usecase"
 	taskUsecase "go-tonify-backend/internal/domain/task/usecase"
 	"go-tonify-backend/pkg/datetime"
@@ -31,11 +32,12 @@ import (
 //	@license.url	http://www.apache.org/licenses/LICENSE-2.0.html
 
 type Handler struct {
-	container      container.Container
-	accountUsecase accountUsecase.Account
-	matchUsecase   accountUsecase.Match
-	countryUsecase countryUsecase.Country
-	taskUsecase    taskUsecase.Task
+	container       container.Container
+	accountUsecase  accountUsecase.Account
+	matchUsecase    accountUsecase.Match
+	countryUsecase  countryUsecase.Country
+	taskUsecase     taskUsecase.Task
+	categoryUsecase categoryUsecase.Category
 }
 
 func NewHandler(
@@ -44,13 +46,15 @@ func NewHandler(
 	matchUsecase accountUsecase.Match,
 	countryUsecase countryUsecase.Country,
 	taskUsecase taskUsecase.Task,
+	categoryUsecase categoryUsecase.Category,
 ) *Handler {
 	return &Handler{
-		container:      container,
-		accountUsecase: accountUsecase,
-		matchUsecase:   matchUsecase,
-		countryUsecase: countryUsecase,
-		taskUsecase:    taskUsecase,
+		container:       container,
+		accountUsecase:  accountUsecase,
+		matchUsecase:    matchUsecase,
+		countryUsecase:  countryUsecase,
+		taskUsecase:     taskUsecase,
+		categoryUsecase: categoryUsecase,
 	}
 }
 
@@ -65,6 +69,7 @@ func (h *Handler) Run() error {
 	corsMiddleware := middleware.NewCORS(h.container)
 	authMiddleware := middleware.NewAuth(h.container, h.accountUsecase)
 	roleMiddleware := middleware.NewRole(h.container, h.accountUsecase)
+	multipartFormMiddleware := middleware.NewMultipartForm(h.container)
 
 	r.Use(corsMiddleware.CORS())
 	r.Use(loggerMiddleware.Logging())
@@ -77,7 +82,7 @@ func (h *Handler) Run() error {
 
 	authGroup := v1.Group("auth")
 	{
-		authGroup.POST("/sign-up", authHandler.SignUp)
+		authGroup.POST("/sign-up", multipartFormMiddleware.Limit(50<<20), authHandler.SignUp)
 		authGroup.POST("/sign-in", authHandler.SignIn)
 	}
 	accountHandler := h.composeAccount(validation)
@@ -85,7 +90,7 @@ func (h *Handler) Run() error {
 	accountGroup.Use(authMiddleware.Authorization())
 	{
 		accountGroup.GET("/my", accountHandler.GetMy)
-		accountGroup.PATCH("/edit", accountHandler.EditMy)
+		accountGroup.PATCH("/edit", multipartFormMiddleware.Limit(50<<20), accountHandler.EditMy)
 		accountGroup.PATCH("/change/role", accountHandler.ChangeRole)
 		accountGroup.DELETE("/delete", accountHandler.DeleteMy)
 	}
@@ -108,6 +113,11 @@ func (h *Handler) Run() error {
 	{
 		commonGroup.GET("/ping", commonHandler.Ping)
 		commonGroup.GET("/countries", commonHandler.Countries)
+	}
+	categoryHandler := h.composeCategory(validation)
+	categoryGroup := v1.Group("/category")
+	{
+		categoryGroup.GET("/all", categoryHandler.GetAll)
 	}
 
 	telegramBotHandler := h.composeTelegramBot()
@@ -167,6 +177,10 @@ func (h *Handler) composeTask(validator validator.HttpValidator) *v1.TaskHandler
 
 func (h *Handler) composeTelegramBot() *v1.TelegramBotHandler {
 	return v1.NewTelegramBotHandler(h.container)
+}
+
+func (h *Handler) composeCategory(validator validator.HttpValidator) *v1.CategoryHandler {
+	return v1.NewCategoryHandler(h.container, validator, h.categoryUsecase)
 }
 
 func (h *Handler) configureAndInitValidation() (validator.HttpValidator, error) {

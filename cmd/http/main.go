@@ -8,6 +8,8 @@ import (
 	"go-tonify-backend/internal/container"
 	accountRepository "go-tonify-backend/internal/domain/account/repository"
 	accountUsecase "go-tonify-backend/internal/domain/account/usecase"
+	categoryRepository "go-tonify-backend/internal/domain/category/repository"
+	categoryUsecase "go-tonify-backend/internal/domain/category/usecase"
 	countryRepository "go-tonify-backend/internal/domain/country/repository"
 	countryUsecase "go-tonify-backend/internal/domain/country/usecase"
 	"go-tonify-backend/internal/domain/provider/transaction"
@@ -37,13 +39,15 @@ func main() {
 	countryRep := countryRepository.NewCountry()
 	taskRep := taskRepository.NewTask(cont.GetDBConnection())
 	tagRep := accountRepository.NewTag(cont.GetDBConnection())
+	categoryRep := categoryRepository.NewCategory(cont.GetDBConnection())
 
-	accountUc := accountUsecase.NewAccount(cont, fileStorage, accountRep, attachmentRep, tagRep, transactionProvider)
-	matchUC := accountUsecase.NewMatch(cont, transactionProvider, accountRep, tagRep)
+	accountUc := accountUsecase.NewAccount(cont, fileStorage, accountRep, attachmentRep, tagRep, categoryRep, transactionProvider)
+	matchUC := accountUsecase.NewMatch(cont, transactionProvider, accountRep, tagRep, categoryRep)
 	countryUc := countryUsecase.NewCountry(cont, countryRep)
 	taskUc := taskUsecase.NewTask(cont, taskRep)
+	categoryUc := categoryUsecase.NewCategory(cont, categoryRep)
 
-	handler := v1.NewHandler(cont, accountUc, matchUC, countryUc, taskUc)
+	handler := v1.NewHandler(cont, accountUc, matchUC, countryUc, taskUc, categoryUc)
 
 	if err := handler.Run(); err != nil {
 		log.Fatalln("fail to run handler", err)

@@ -4,9 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"go-tonify-backend/internal/container"
-	"go-tonify-backend/internal/domain/account/converter"
+	accountConverter "go-tonify-backend/internal/domain/account/converter"
 	"go-tonify-backend/internal/domain/account/model"
-	"go-tonify-backend/internal/domain/account/repository"
+	accountRepository "go-tonify-backend/internal/domain/account/repository"
+	categoryConverter "go-tonify-backend/internal/domain/category/converter"
+	categoryRepository "go-tonify-backend/internal/domain/category/repository"
 	"go-tonify-backend/internal/domain/entity"
 	"go-tonify-backend/internal/domain/provider/transaction"
 	"go-tonify-backend/pkg/logger"
@@ -20,21 +22,24 @@ type Match interface {
 type match struct {
 	container           container.Container
 	transactionProvider *transaction.Provider
-	accountRepository   repository.Account
-	tagRepository       repository.Tag
+	accountRepository   accountRepository.Account
+	tagRepository       accountRepository.Tag
+	categoryRepository  categoryRepository.Category
 }
 
 func NewMatch(
 	container container.Container,
 	transactionProvider *transaction.Provider,
-	accountRepository repository.Account,
-	tagRepository repository.Tag,
+	accountRepository accountRepository.Account,
+	tagRepository accountRepository.Tag,
+	categoryRepository categoryRepository.Category,
 ) Match {
 	return &match{
 		container:           container,
 		transactionProvider: transactionProvider,
 		accountRepository:   accountRepository,
 		tagRepository:       tagRepository,
+		categoryRepository:  categoryRepository,
 	}
 }
 
@@ -61,8 +66,8 @@ func (m *match) MatchableAccounts(ctx context.Context, accountID int64, limit in
 	}
 	accounts := make([]model.Account, 0, len(accountEntities))
 	for _, accountEntity := range accountEntities {
-		account := converter.ConvertEntity2AccountModel(&accountEntity)
-		tagEntities, err := m.tagRepository.GetTagsByAccountID(ctx, accountEntity.ID)
+		account := accountConverter.ConvertEntity2AccountModel(&accountEntity)
+		tags, err := m.tagRepository.GetTagsByAccountID(ctx, accountEntity.ID)
 		if err != nil {
 			log.Error(
 				"fail to get tags by account id",
@@ -70,8 +75,11 @@ func (m *match) MatchableAccounts(ctx context.Context, accountID int64, limit in
 				logger.F("account_id", accountEntity.ID),
 			)
 		}
-		tags := converter.ConvertEntities2TagModels(tagEntities)
-		account.Tags = &tags
+		tagModels := accountConverter.ConvertEntities2TagModels(tags)
+		account.Tags = &tagModels
+		categories, err := m.categoryRepository.GetCategoriesByAccountID(ctx, accountEntity.ID)
+		categoryModels := categoryConverter.ConvertEntities2CategoriesModel(categories)
+		account.Categories = &categoryModels
 		accounts = append(accounts, *account)
 	}
 	return accounts, nil

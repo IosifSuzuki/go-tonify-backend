@@ -15,6 +15,8 @@ type EditAccount struct {
 	Location           string
 	CompanyName        *string
 	CompanyDescription *string
+	Tags               *[]string
+	CategoryIDs        *[]int64
 	AvatarFileHeader   *multipart.FileHeader
 	DocumentFileHeader *multipart.FileHeader
 }

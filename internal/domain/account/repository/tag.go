@@ -7,10 +7,15 @@ import (
 )
 
 type Tag interface {
-	Create(ctx context.Context, tag *entity.Tag, accountID int64) (*int64, error)
+	CreateIfNeeded(ctx context.Context, tag *entity.Tag) (*int64, error)
+	Delete(ctx context.Context, tagID int64) error
+	Cleanup(ctx context.Context, tagID int64) error
 	ExistTagWithTitle(ctx context.Context, title string) (bool, error)
-	GetTagByTitle(ctx context.Context, title string) (*entity.Tag, error)
+	HasTagRelationship(ctx context.Context, tagID int64) (bool, error)
+	AddAccountTag(ctx context.Context, accountTag *entity.AccountTag) error
+	RemoveAllFromAccountID(ctx context.Context, accountID int64) error
 	GetTagsByAccountID(ctx context.Context, accountID int64) ([]entity.Tag, error)
+	GetTagByTitle(ctx context.Context, title string) (*entity.Tag, error)
 }
 
 type tag struct {
@@ -23,7 +28,7 @@ func NewTag(conn psql.Operation) Tag {
 	}
 }
 
-func (t *tag) Create(ctx context.Context, tag *entity.Tag, accountID int64) (*int64, error) {
+func (t *tag) CreateIfNeeded(ctx context.Context, tag *entity.Tag) (*int64, error) {
 	exists, err := t.ExistTagWithTitle(ctx, tag.Title)
 	if err != nil {
 		return nil, err
@@ -41,16 +46,54 @@ func (t *tag) Create(ctx context.Context, tag *entity.Tag, accountID int64) (*in
 		}
 		tagID = tag.ID
 	}
-	accountTag := entity.AccountTag{
-		AccountID: accountID,
-		TagID:     tagID,
-	}
-	query := "INSERT INTO account_tag (account_id, tag_id) VALUES ($1, $2)"
-	_, err = t.conn.ExecContext(ctx, query, accountTag.AccountID, accountTag.TagID)
-	if err != nil {
-		return nil, err
-	}
 	return &tagID, nil
+}
+
+func (t *tag) Delete(ctx context.Context, tagID int64) error {
+	query := "DELETE FROM tag WHERE id = $1;"
+	_, err := t.conn.ExecContext(ctx, query, tagID)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (t *tag) AddAccountTag(ctx context.Context, accountTag *entity.AccountTag) error {
+	query := "INSERT INTO account_tag (account_id, tag_id) VALUES ($1, $2)"
+	_, err := t.conn.ExecContext(ctx, query, accountTag.AccountID, accountTag.TagID)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (t *tag) RemoveAllFromAccountID(ctx context.Context, accountID int64) error {
+	query := "DELETE FROM account_tag WHERE account_id = $1;"
+	_, err := t.conn.ExecContext(ctx, query, accountID)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (t *tag) HasTagRelationship(ctx context.Context, tagID int64) (bool, error) {
+	query := "SELECT EXISTS(SELECT 1 FROM account_tag WHERE tag_id=$1);"
+	var exists bool
+	if err := t.conn.QueryRowContext(ctx, query, tagID).Scan(&exists); err != nil {
+		return false, err
+	}
+	return exists, nil
+}
+
+func (t *tag) Cleanup(ctx context.Context, tagID int64) error {
+	hasRelationship, err := t.HasTagRelationship(ctx, tagID)
+	if err != nil {
+		return err
+	}
+	if hasRelationship {
+		return nil
+	}
+	return t.Delete(ctx, tagID)
 }
 
 func (t *tag) GetTagsByAccountID(ctx context.Context, accountID int64) ([]entity.Tag, error) {
@@ -81,7 +124,7 @@ func (t *tag) ExistTagWithTitle(ctx context.Context, title string) (bool, error)
 	query := "SELECT EXISTS(SELECT 1 FROM tag WHERE title=$1);"
 	var exists bool
 	if err := t.conn.QueryRowContext(ctx, query, title).Scan(&exists); err != nil {
-		return false, nil
+		return false, err
 	}
 	return exists, nil
 }
