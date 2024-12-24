@@ -39,11 +39,11 @@ func NewMatchHandler(
 //	@Param			Authorization	header		string					true	"account's access token"
 //	@Param			limit			query		int						true	"pagination limit"
 //	@Produce		json
-//	@Success		200	{object}	dto.Response{response=[]dto.Account}	"list of matchable accounts"
-//	@Failure		400	{object}	dto.Response{response=dto.Empty}		"detailed error message"
-//	@Failure		401	{object}	dto.Response{response=dto.Empty}		"the authorization token is invalid/expired/missing"
-//	@Failure		410	{object}	dto.Response{response=dto.Empty}		"account does not exist or has been deleted"
-//	@Failure		500	{object}	dto.Response{response=dto.Empty}		"detailed error message"
+//	@Success		200	{object}	dto.Response{response=dto.Pagination{data=[]dto.Account}}		"list of matchable accounts"
+//	@Failure		400	{object}	dto.Response{response=dto.Empty}								"detailed error message"
+//	@Failure		401	{object}	dto.Response{response=dto.Empty}								"the authorization token is invalid/expired/missing"
+//	@Failure		410	{object}	dto.Response{response=dto.Empty}								"account does not exist or has been deleted"
+//	@Failure		500	{object}	dto.Response{response=dto.Empty}								"detailed error message"
 //	@Router			/v1/match/matchable/accounts [get]
 //	@Security		ApiKeyAuth
 func (m *MatchHandler) MatchableAccounts(ctx *gin.Context) {
@@ -60,7 +60,7 @@ func (m *MatchHandler) MatchableAccounts(ctx *gin.Context) {
 		badRequestResponse(ctx, m.validation, dto.BadRequestError, err)
 		return
 	}
-	accountModels, err := m.matchUsecase.MatchableAccounts(ctx, *accountID, getMatchAccounts.Limit)
+	paginationModel, err := m.matchUsecase.MatchableAccounts(ctx, *accountID, getMatchAccounts.Limit)
 	if err != nil {
 		log.Error("fail to get matchable accounts", logger.FError(err))
 		switch err {
@@ -71,12 +71,60 @@ func (m *MatchHandler) MatchableAccounts(ctx *gin.Context) {
 		}
 		return
 	}
-	accounts := make([]dto.Account, 0, len(accountModels))
-	for _, accountModel := range accountModels {
-		account := converter.ConvertModel2AccountResponse(&accountModel)
-		accounts = append(accounts, *account)
+	accounts := converter.ConvertModels2AccountResponses(paginationModel.Data)
+	pagination := dto.Pagination{
+		Offset: paginationModel.Offset,
+		Limit:  paginationModel.Limit,
+		Total:  paginationModel.Total,
+		Data:   accounts,
 	}
-	successResponse(ctx, http.StatusOK, accounts)
+	successResponse(ctx, http.StatusOK, pagination)
+}
+
+// AccountLikers godoc
+//
+//	@Summary		Get account likers
+//	@Description	Get accounts who like you.
+//	@Tags			match
+//	@Param			Authorization	header		string					true	"account's access token"
+//	@Param			offset			query		int						true	"pagination offset"
+//	@Param			limit			query		int						true	"pagination limit"
+//	@Produce		json
+//	@Success		200	{object}	dto.Response{response=dto.Pagination{data=[]dto.Account}}	"list of accounts who's like you"
+//	@Failure		400	{object}	dto.Response{response=dto.Empty}		"detailed error message"
+//	@Failure		401	{object}	dto.Response{response=dto.Empty}		"the authorization token is invalid/expired/missing"
+//	@Failure		410	{object}	dto.Response{response=dto.Empty}		"account does not exist or has been deleted"
+//	@Failure		500	{object}	dto.Response{response=dto.Empty}		"detailed error message"
+//	@Router			/v1/match/likers [get]
+//	@Security		ApiKeyAuth
+func (m *MatchHandler) AccountLikers(ctx *gin.Context) {
+	log := m.container.GetLogger()
+	accountID, err := getAccountID(ctx)
+	if err != nil {
+		log.Error("fail to get account id", logger.FError(err))
+		failResponse(ctx, http.StatusUnauthorized, err, nil)
+		return
+	}
+	var getLikedAccounts dto.GetLikedAccounts
+	if err := ctx.ShouldBindQuery(&getLikedAccounts); err != nil {
+		log.Error("fail to bind get match accounts", logger.FError(err))
+		badRequestResponse(ctx, m.validation, dto.BadRequestError, err)
+		return
+	}
+	paginationModel, err := m.matchUsecase.GetAccountLikers(ctx, *accountID, getLikedAccounts.Offset, getLikedAccounts.Limit)
+	if err != nil {
+		log.Error("fail to get account likers", logger.FError(err))
+		failResponse(ctx, http.StatusInternalServerError, dto.InternalServerError, err)
+		return
+	}
+	accounts := converter.ConvertModels2AccountResponses(paginationModel.Data)
+	pagination := dto.Pagination{
+		Offset: paginationModel.Offset,
+		Limit:  paginationModel.Limit,
+		Total:  paginationModel.Total,
+		Data:   accounts,
+	}
+	successResponse(ctx, http.StatusOK, pagination)
 }
 
 // MatchAction godoc
@@ -86,7 +134,6 @@ func (m *MatchHandler) MatchableAccounts(ctx *gin.Context) {
 // @Description  - **like**: The action was successful.
 // @Description  - **error**: An error occurred while processing the request.
 // @Description  - **match**: A mutual "like" was identified.
-// @Description
 // @Description  When a client performs a **dislike** action, the server can return:
 // @Description  - **dislike**: The action was successful.
 // @Description  - **error**: An error occurred while processing the request.

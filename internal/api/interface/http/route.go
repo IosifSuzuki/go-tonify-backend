@@ -99,6 +99,7 @@ func (h *Handler) Run() error {
 	matchGroup.Use(authMiddleware.Authorization())
 	{
 		matchGroup.GET("/matchable/accounts", matchHandler.MatchableAccounts)
+		matchGroup.GET("/likers", matchHandler.AccountLikers)
 		matchGroup.POST("/action/:action", matchHandler.MatchAction)
 	}
 	taskHandler := h.composeTask(validation)
