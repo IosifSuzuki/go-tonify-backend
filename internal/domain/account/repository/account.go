@@ -18,7 +18,10 @@ type Account interface {
 	GetByTelegramID(ctx context.Context, telegramID int64) (*entity.Account, error)
 	Update(ctx context.Context, account *entity.Account) error
 	Delete(ctx context.Context, id int64) error
+	GetNumberMatchableAccounts(ctx context.Context, accountID int64, role entity.Role) (*int64, error)
 	GetMatchableAccounts(ctx context.Context, accountID int64, role entity.Role, limit int64) ([]entity.Account, error)
+	GetNumberAccountLikers(ctx context.Context, accountID int64) (*int64, error)
+	GetAccountLikers(ctx context.Context, accountID int64, offset int64, limit int64) ([]entity.Account, error)
 	ExistsLike(ctx context.Context, likeAccount entity.LikeAccount) (bool, error)
 	LikeAccount(ctx context.Context, likeAccount entity.LikeAccount) error
 	DeleteLikeAccount(ctx context.Context, likeAccount entity.LikeAccount) error
@@ -582,6 +585,25 @@ func (a *account) Delete(ctx context.Context, id int64) error {
 	return err
 }
 
+func (a *account) GetNumberMatchableAccounts(ctx context.Context, accountID int64, role entity.Role) (*int64, error) {
+	query := "SELECT " +
+		"	COUNT(*) " +
+		"FROM " +
+		"	account " +
+		"LEFT JOIN like_account ON like_account.liker_id = $1 AND account.id = like_account.liked_id " +
+		"LEFT JOIN dislike_account ON dislike_account.disliker_id = $2 AND account.id = dislike_account.disliked_id " +
+		"WHERE " +
+		"	account.role = $3 " +
+		"	AND account.id != $4 " +
+		"	AND like_account.id IS NULL " +
+		"	AND dislike_account.id IS NULL;"
+	var totalRows int64
+	if err := a.conn.QueryRowContext(ctx, query, accountID, accountID, role.String(), accountID).Scan(&totalRows); err != nil {
+		return nil, err
+	}
+	return &totalRows, nil
+}
+
 func (a *account) GetMatchableAccounts(ctx context.Context, accountID int64, role entity.Role, limit int64) ([]entity.Account, error) {
 	query := "SELECT" +
 		"	account.id, " +
@@ -600,12 +622,17 @@ func (a *account) GetMatchableAccounts(ctx context.Context, accountID int64, rol
 		"	avatar.path," +
 		"	avatar.created_at," +
 		"	avatar.updated_at," +
-		"	account.document_id," +
+		"	account.document_id, " +
 		"	account.company_id, " +
+		"	company.name, " +
+		"	company.description, " +
+		"	company.created_at, " +
+		"	company.updated_at, " +
 		"	account.created_at, " +
 		"	account.updated_at " +
 		"FROM" +
 		"	account " +
+		"LEFT JOIN company ON account.company_id = company.id " +
 		"LEFT JOIN attachment as avatar ON account.avatar_id = avatar.id " +
 		"LEFT JOIN like_account ON like_account.liker_id = $1 AND account.id = like_account.liked_id " +
 		"LEFT JOIN dislike_account ON dislike_account.disliker_id = $2 AND account.id = dislike_account.disliked_id " +
@@ -622,22 +649,26 @@ func (a *account) GetMatchableAccounts(ctx context.Context, accountID int64, rol
 	accounts := make([]entity.Account, 0, limit)
 	for rows.Next() {
 		var (
-			middleName      sql.NullString
-			nickname        sql.NullString
-			aboutMe         sql.NullString
-			companyID       sql.NullInt64
-			country         sql.NullString
-			location        sql.NullString
-			createdAt       sql.NullTime
-			updatedAt       sql.NullTime
-			avatarID        sql.NullInt64
-			avatarName      sql.NullString
-			avatarPath      sql.NullString
-			avatarCreatedAt sql.NullTime
-			avatarUpdatedAt sql.NullTime
-			documentID      sql.NullInt64
-			role            string
-			gender          string
+			middleName         sql.NullString
+			nickname           sql.NullString
+			aboutMe            sql.NullString
+			companyID          sql.NullInt64
+			companyName        sql.NullString
+			companyDescription sql.NullString
+			companyCreatedAt   sql.NullTime
+			companyUpdatedAt   sql.NullTime
+			country            sql.NullString
+			location           sql.NullString
+			createdAt          sql.NullTime
+			updatedAt          sql.NullTime
+			avatarID           sql.NullInt64
+			avatarName         sql.NullString
+			avatarPath         sql.NullString
+			avatarCreatedAt    sql.NullTime
+			avatarUpdatedAt    sql.NullTime
+			documentID         sql.NullInt64
+			role               string
+			gender             string
 		)
 		var account entity.Account
 		err = rows.Scan(
@@ -659,6 +690,10 @@ func (a *account) GetMatchableAccounts(ctx context.Context, accountID int64, rol
 			&avatarUpdatedAt,
 			&documentID,
 			&companyID,
+			&companyName,
+			&companyDescription,
+			&companyCreatedAt,
+			&companyUpdatedAt,
 			&createdAt,
 			&updatedAt,
 		)
@@ -677,7 +712,200 @@ func (a *account) GetMatchableAccounts(ctx context.Context, accountID int64, rol
 			account.Nickname = &nickname.String
 		}
 		if companyID.Valid {
+			var company = new(entity.Company)
+			company.ID = companyID.Int64
 			account.CompanyID = &companyID.Int64
+			account.Company = company
+		}
+		if companyName.Valid {
+			account.Company.Name = companyName.String
+		}
+		if companyDescription.Valid {
+			account.Company.Description = companyDescription.String
+		}
+		if companyCreatedAt.Valid {
+			account.Company.CreatedAt = &companyCreatedAt.Time
+		}
+		if companyUpdatedAt.Valid {
+			account.Company.UpdatedAt = &companyUpdatedAt.Time
+		}
+		if createdAt.Valid {
+			account.CreatedAt = &createdAt.Time
+		}
+		if updatedAt.Valid {
+			account.UpdatedAt = &updatedAt.Time
+		}
+		if country.Valid {
+			account.Country = &country.String
+		}
+		if location.Valid {
+			account.Location = &location.String
+		}
+		if avatarID.Valid {
+			var attachment = entity.Attachment{
+				ID:        avatarID.Int64,
+				Path:      new(string),
+				CreatedAt: new(time.Time),
+				UpdatedAt: new(time.Time),
+			}
+			account.AvatarAttachment = &attachment
+		}
+		if avatarName.Valid {
+			account.AvatarAttachment.FileName = avatarName.String
+		}
+		if avatarPath.Valid {
+			account.AvatarAttachment.Path = &avatarPath.String
+		}
+		if avatarCreatedAt.Valid {
+			account.AvatarAttachment.CreatedAt = &avatarCreatedAt.Time
+		}
+		if avatarUpdatedAt.Valid {
+			account.AvatarAttachment.UpdatedAt = &avatarUpdatedAt.Time
+		}
+		if documentID.Valid {
+			account.DocumentAttachmentID = &documentID.Int64
+		}
+		if err != nil {
+			return nil, err
+		}
+		accounts = append(accounts, account)
+	}
+	return accounts, nil
+}
+
+func (a *account) GetNumberAccountLikers(ctx context.Context, accountID int64) (*int64, error) {
+	query := "SELECT COUNT(*) as all_rows " +
+		"	FROM account " +
+		"	LEFT JOIN like_account ON account.id = like_account.liked_id " +
+		"	WHERE like_account.liked_id = $1;"
+	var totalRows int64
+	if err := a.conn.QueryRowContext(ctx, query, accountID).Scan(&totalRows); err != nil {
+		return nil, err
+	}
+	return &totalRows, nil
+}
+
+func (a *account) GetAccountLikers(ctx context.Context, accountID int64, offset int64, limit int64) ([]entity.Account, error) {
+	query := "SELECT" +
+		"	account.id, " +
+		"	account.telegram_id, " +
+		"	account.first_name, " +
+		"	account.middle_name, " +
+		"	account.last_name, " +
+		"	account.nickname, " +
+		"	account.role, " +
+		"	account.about_me, " +
+		"	account.gender, " +
+		"	account.country, " +
+		"	account.location, " +
+		"	account.avatar_id, " +
+		"	avatar.file_name," +
+		"	avatar.path," +
+		"	avatar.created_at," +
+		"	avatar.updated_at," +
+		"	account.document_id," +
+		"	account.company_id, " +
+		"	company.name, " +
+		"	company.description, " +
+		"	company.created_at, " +
+		"	company.updated_at, " +
+		"	account.created_at, " +
+		"	account.updated_at " +
+		"FROM" +
+		"	account " +
+		"LEFT JOIN company ON account.company_id = company.id " +
+		"LEFT JOIN attachment as avatar ON account.avatar_id = avatar.id " +
+		"LEFT JOIN like_account ON account.id = like_account.liker_id " +
+		"WHERE" +
+		"	like_account.liked_id = $1 " +
+		"LIMIT $2 " +
+		"OFFSET $3;"
+	rows, err := a.conn.QueryContext(ctx, query, accountID, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	accounts := make([]entity.Account, 0, limit)
+	for rows.Next() {
+		var (
+			middleName         sql.NullString
+			nickname           sql.NullString
+			aboutMe            sql.NullString
+			companyID          sql.NullInt64
+			companyName        sql.NullString
+			companyDescription sql.NullString
+			companyCreatedAt   sql.NullTime
+			companyUpdatedAt   sql.NullTime
+			country            sql.NullString
+			location           sql.NullString
+			createdAt          sql.NullTime
+			updatedAt          sql.NullTime
+			avatarID           sql.NullInt64
+			avatarName         sql.NullString
+			avatarPath         sql.NullString
+			avatarCreatedAt    sql.NullTime
+			avatarUpdatedAt    sql.NullTime
+			documentID         sql.NullInt64
+			role               string
+			gender             string
+		)
+		var account entity.Account
+		err = rows.Scan(
+			&account.ID,
+			&account.TelegramID,
+			&account.FirstName,
+			&middleName,
+			&account.LastName,
+			&nickname,
+			&role,
+			&aboutMe,
+			&gender,
+			&country,
+			&location,
+			&avatarID,
+			&avatarName,
+			&avatarPath,
+			&avatarCreatedAt,
+			&avatarUpdatedAt,
+			&documentID,
+			&companyID,
+			&companyName,
+			&companyDescription,
+			&companyCreatedAt,
+			&companyUpdatedAt,
+			&createdAt,
+			&updatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		account.Role, _ = entity.RoleFromString(role)
+		account.Gender, _ = entity.GenderFromString(gender)
+		if middleName.Valid {
+			account.MiddleName = &middleName.String
+		}
+		if aboutMe.Valid {
+			account.AboutMe = &aboutMe.String
+		}
+		if nickname.Valid {
+			account.Nickname = &nickname.String
+		}
+		if companyID.Valid {
+			var company = new(entity.Company)
+			company.ID = companyID.Int64
+			account.CompanyID = &companyID.Int64
+			account.Company = company
+		}
+		if companyName.Valid {
+			account.Company.Name = companyName.String
+		}
+		if companyDescription.Valid {
+			account.Company.Description = companyDescription.String
+		}
+		if companyCreatedAt.Valid {
+			account.Company.CreatedAt = &companyCreatedAt.Time
+		}
+		if companyUpdatedAt.Valid {
+			account.Company.UpdatedAt = &companyUpdatedAt.Time
 		}
 		if createdAt.Valid {
 			account.CreatedAt = &createdAt.Time

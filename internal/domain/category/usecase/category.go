@@ -6,11 +6,12 @@ import (
 	"go-tonify-backend/internal/domain/category/converter"
 	"go-tonify-backend/internal/domain/category/model"
 	"go-tonify-backend/internal/domain/category/repository"
+	model2 "go-tonify-backend/internal/domain/model"
 	"go-tonify-backend/pkg/logger"
 )
 
 type Category interface {
-	GetAllCategories(ctx context.Context, offset int64, limit int64) (*model.Pagination[model.Category], error)
+	GetAllCategories(ctx context.Context, offset int64, limit int64) (*model2.Pagination[model.Category], error)
 }
 
 type category struct {
@@ -28,7 +29,7 @@ func NewCategory(
 	}
 }
 
-func (c *category) GetAllCategories(ctx context.Context, offset int64, limit int64) (*model.Pagination[model.Category], error) {
+func (c *category) GetAllCategories(ctx context.Context, offset int64, limit int64) (*model2.Pagination[model.Category], error) {
 	log := c.container.GetLogger()
 	categories, err := c.categoryRepository.GetAll(ctx, offset, limit)
 	if err != nil {
@@ -45,7 +46,7 @@ func (c *category) GetAllCategories(ctx context.Context, offset int64, limit int
 		return nil, model.NilError
 	}
 	categoryModels := converter.ConvertEntities2CategoriesModel(categories)
-	pagination := model.Pagination[model.Category]{
+	pagination := model2.Pagination[model.Category]{
 		Offset: offset,
 		Limit:  limit,
 		Total:  *numberOfCategories,

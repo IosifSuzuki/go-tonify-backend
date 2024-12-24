@@ -50,3 +50,11 @@ func ConvertModel2AccountResponse(accountModel *model.Account) *dto.Account {
 	}
 	return &account
 }
+
+func ConvertModels2AccountResponses(accountModels []model.Account) []dto.Account {
+	accounts := make([]dto.Account, 0, len(accountModels))
+	for _, accountModel := range accountModels {
+		accounts = append(accounts, *ConvertModel2AccountResponse(&accountModel))
+	}
+	return accounts
+}
