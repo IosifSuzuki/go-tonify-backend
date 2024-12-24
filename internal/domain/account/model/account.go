@@ -1,6 +1,7 @@
 package model
 
 import (
+	"go-tonify-backend/internal/domain/category/model"
 	"time"
 )
 
@@ -17,6 +18,7 @@ type Account struct {
 	Country            *string
 	Location           *string
 	Tags               *[]Tag
+	Categories         *[]model.Category
 	Company            *Company
 	AvatarAttachment   *Attachment
 	DocumentAttachment *Attachment

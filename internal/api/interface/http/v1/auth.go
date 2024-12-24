@@ -72,10 +72,6 @@ func (a *AuthHandler) SignUp(ctx *gin.Context) {
 		badRequestResponse(ctx, a.validation, dto.BadRequestError, err)
 		return
 	}
-	if err := ctx.Request.ParseMultipartForm(50 << 20); err != nil {
-		log.Error("fail to Parse multipart form", logger.FError(err))
-		failResponse(ctx, http.StatusBadRequest, dto.BadRequestError, err)
-	}
 	if _, ok := ctx.Request.MultipartForm.File["avatar"]; ok {
 		log.Debug("has avatar")
 		avatarFileHeader, err = ctx.FormFile("avatar")
@@ -104,6 +100,7 @@ func (a *AuthHandler) SignUp(ctx *gin.Context) {
 		Gender:             string(createAccountRequest.Gender),
 		Country:            createAccountRequest.Country,
 		Location:           createAccountRequest.Location,
+		CategoryIDs:        createAccountRequest.CategoryIDs,
 		Tags:               createAccountRequest.Tags,
 		CompanyName:        createAccountRequest.CompanyName,
 		CompanyDescription: createAccountRequest.CompanyDescription,

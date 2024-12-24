@@ -17,6 +17,7 @@ type Account struct {
 	Country            *string            `json:"country" example:"Ukraine"`
 	Location           *string            `json:"location" example:"Kyiv"`
 	Tags               *[]Tag             `json:"tags"`
+	Categories         *[]Category        `json:"categories"`
 	Company            *Company           `json:"company"`
 	AvatarAttachment   *Attachment        `json:"avatar_attachment"`
 	DocumentAttachment *Attachment        `json:"document_attachment"`

@@ -12,6 +12,7 @@ type CreateAccount struct {
 	Country            string    `form:"country" binding:"required"`
 	Location           string    `form:"location" binding:"required"`
 	Tags               *[]string `form:"tags"`
+	CategoryIDs        *[]int64  `form:"category_ids"`
 	CompanyName        *string   `form:"company_name"`
 	CompanyDescription *string   `form:"company_description"`
 }

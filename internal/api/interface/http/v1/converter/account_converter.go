@@ -44,5 +44,9 @@ func ConvertModel2AccountResponse(accountModel *model.Account) *dto.Account {
 		tags := ConvertModels2TagsResponse(*accountModel.Tags)
 		account.Tags = &tags
 	}
+	if accountModel.Categories != nil {
+		categories := ConvertModels2CategoriesResponse(*accountModel.Categories)
+		account.Categories = &categories
+	}
 	return &account
 }

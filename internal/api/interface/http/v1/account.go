@@ -108,10 +108,6 @@ func (a *AccountHandler) EditMy(ctx *gin.Context) {
 		avatarFileHeader   *multipart.FileHeader
 		documentFileHeader *multipart.FileHeader
 	)
-	if err := ctx.Request.ParseMultipartForm(50 << 20); err != nil {
-		log.Error("fail to Parse multipart form", logger.FError(err))
-		failResponse(ctx, http.StatusBadRequest, dto.BadRequestError, err)
-	}
 	if _, ok := ctx.Request.MultipartForm.File["avatar"]; ok {
 		avatarFileHeader, err = ctx.FormFile("avatar")
 		if err != nil {
@@ -147,6 +143,8 @@ func (a *AccountHandler) EditMy(ctx *gin.Context) {
 		Country:            editAccountRequest.Country,
 		CompanyName:        editAccountRequest.CompanyName,
 		CompanyDescription: editAccountRequest.CompanyDescription,
+		Tags:               editAccountRequest.Tags,
+		CategoryIDs:        editAccountRequest.CategoryIDs,
 		AvatarFileHeader:   avatarFileHeader,
 		DocumentFileHeader: documentFileHeader,
 	}

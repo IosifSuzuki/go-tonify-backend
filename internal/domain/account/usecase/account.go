@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"go-tonify-backend/internal/container"
-	"go-tonify-backend/internal/domain/account/converter"
+	accountConverter "go-tonify-backend/internal/domain/account/converter"
 	"go-tonify-backend/internal/domain/account/model"
-	"go-tonify-backend/internal/domain/account/repository"
+	accountRepository "go-tonify-backend/internal/domain/account/repository"
+	categoryConverter "go-tonify-backend/internal/domain/category/converter"
+	categoryRepository "go-tonify-backend/internal/domain/category/repository"
 	"go-tonify-backend/internal/domain/entity"
 	"go-tonify-backend/internal/domain/filestorage"
 	"go-tonify-backend/internal/domain/provider/transaction"
@@ -17,6 +19,7 @@ import (
 	"go-tonify-backend/pkg/logger"
 	"go-tonify-backend/pkg/telegram"
 	"mime/multipart"
+	"regexp"
 	"strings"
 )
 
@@ -35,9 +38,10 @@ type Account interface {
 type account struct {
 	container            container.Container
 	fileStorage          filestorage.FileStorage
-	accountRepository    repository.Account
-	attachmentRepository repository.Attachment
-	tagRepository        repository.Tag
+	accountRepository    accountRepository.Account
+	attachmentRepository accountRepository.Attachment
+	tagRepository        accountRepository.Tag
+	categoryRepository   categoryRepository.Category
 	transactionProvider  *transaction.Provider
 }
 
@@ -49,9 +53,10 @@ type uploadFile struct {
 func NewAccount(
 	container container.Container,
 	fileStorage filestorage.FileStorage,
-	accountRepository repository.Account,
-	attachmentRepository repository.Attachment,
-	tagRepository repository.Tag,
+	accountRepository accountRepository.Account,
+	attachmentRepository accountRepository.Attachment,
+	tagRepository accountRepository.Tag,
+	categoryRepository categoryRepository.Category,
 	transactionProvider *transaction.Provider,
 ) Account {
 	return &account{
@@ -60,6 +65,7 @@ func NewAccount(
 		accountRepository:    accountRepository,
 		attachmentRepository: attachmentRepository,
 		tagRepository:        tagRepository,
+		categoryRepository:   categoryRepository,
 		transactionProvider:  transactionProvider,
 	}
 }
@@ -90,7 +96,7 @@ func (a *account) CreateAccount(ctx context.Context, createAccount model.CreateA
 	}
 	isDeletedAccountWithTelegramID, err := a.accountRepository.IsDeletedAccountByTelegramID(ctx, telegramInitModel.TelegramUser.ID)
 	if isDeletedAccountWithTelegramID {
-		log.Error("account not exist in db", logger.F("telegram_id", telegramInitModel.TelegramUser.ID))
+		log.Error("account is already deleted", logger.F("telegram_id", telegramInitModel.TelegramUser.ID))
 		return nil, model.DuplicateAccountWithTelegramIDError
 	}
 	existAccountWithTelegramID, err := a.accountRepository.ExistsWithTelegramID(ctx, telegramInitModel.TelegramUser.ID)
@@ -219,9 +225,26 @@ func (a *account) CreateAccount(ctx context.Context, createAccount model.CreateA
 				tagEntity := entity.Tag{
 					Title: tag,
 				}
-				_, err = composed.Tag.Create(ctx, &tagEntity, *accountID)
+				tagID, err := composed.Tag.CreateIfNeeded(ctx, &tagEntity)
 				if err != nil {
 					log.Error("fail to create/add tag to account", logger.FError(err))
+					return err
+				}
+				accountTag := entity.AccountTag{
+					AccountID: *accountID,
+					TagID:     *tagID,
+				}
+				if err := composed.Tag.AddAccountTag(ctx, &accountTag); err != nil {
+					return err
+				}
+			}
+		}
+		if createAccount.HasCategories() {
+			categoryIDs := *createAccount.CategoryIDs
+			for _, categoryID := range categoryIDs {
+				err = composed.Category.AddCategoryToAccount(ctx, categoryID, *accountID)
+				if err != nil {
+					log.Error("fail to bind category to account", logger.FError(err))
 					return err
 				}
 			}
@@ -385,6 +408,64 @@ func (a *account) EditAccount(ctx context.Context, editAccount model.EditAccount
 				account.DocumentAttachmentID = documentAttachmentID
 			}
 		}
+
+		oldTags, err := composed.Tag.GetTagsByAccountID(ctx, account.ID)
+		if err != nil {
+			log.Error("fail to get tags by ")
+			return err
+		}
+		if err := composed.Tag.RemoveAllFromAccountID(ctx, account.ID); err != nil {
+			log.Error("fail to remove tags from account", logger.FError(err))
+			return err
+		}
+		for _, oldTag := range oldTags {
+			if err := composed.Tag.Cleanup(ctx, oldTag.ID); err != nil {
+				log.Error("fail to cleanup tag", logger.FError(err))
+				return err
+			}
+		}
+		newTags := make([]string, 0, 0)
+		if editAccount.Tags != nil {
+			newTags = *editAccount.Tags
+		}
+		for _, tagTitle := range newTags {
+			var tag = entity.Tag{
+				Title: tagTitle,
+			}
+			tagID, err := composed.Tag.CreateIfNeeded(ctx, &tag)
+			if err != nil {
+				log.Error("fail to create tag", logger.FError(err))
+				return err
+			}
+			if tagID == nil {
+				log.Error("tag_id has nil value")
+				return model.NilError
+			}
+			accountTag := entity.AccountTag{
+				AccountID: account.ID,
+				TagID:     *tagID,
+			}
+			err = composed.Tag.AddAccountTag(ctx, &accountTag)
+			if err != nil {
+				log.Error("fail to get tag by id", logger.FError(err))
+				return err
+			}
+		}
+
+		if err := composed.Category.DeleteCategoriesFromAccount(ctx, account.ID); err != nil {
+			log.Error("fail to delete categories from account", logger.FError(err))
+			return err
+		}
+		var categoryIDs = make([]int64, 0)
+		if editAccount.CategoryIDs != nil {
+			categoryIDs = *editAccount.CategoryIDs
+		}
+		for _, categoryID := range categoryIDs {
+			if err := composed.Category.AddCategoryToAccount(ctx, categoryID, account.ID); err != nil {
+				log.Error("fail to bind category to account", logger.FError(err))
+				return err
+			}
+		}
 		account.FirstName = editAccount.FirstName
 		account.MiddleName = editAccount.MiddleName
 		account.LastName = editAccount.LastName
@@ -504,17 +585,22 @@ func (a *account) GetDetailsAccount(ctx context.Context, id int64) (*model.Accou
 			return nil, err
 		}
 	}
+	accountModel := accountConverter.ConvertEntity2AccountModel(account)
 	tags, err := a.tagRepository.GetTagsByAccountID(ctx, id)
 	if err != nil {
+		log.Error("fail to get tags by account_id", logger.F("account_id", id))
 		return nil, err
 	}
-	tagModels := make([]model.Tag, 0, len(tags))
-	for _, tag := range tags {
-		tagModel := converter.ConvertEntity2TagModel(&tag)
-		tagModels = append(tagModels, *tagModel)
-	}
-	accountModel := converter.ConvertEntity2AccountModel(account)
+	tagModels := accountConverter.ConvertEntities2TagModels(tags)
 	accountModel.Tags = &tagModels
+	categories, err := a.categoryRepository.GetCategoriesByAccountID(ctx, id)
+	if err != nil {
+		log.Error("fail to get categories by account_id", logger.F("account_id", id))
+		return nil, err
+	}
+	categoryModels := categoryConverter.ConvertEntities2CategoriesModel(categories)
+	accountModel.Categories = &categoryModels
+
 	return accountModel, nil
 }
 
@@ -643,6 +729,8 @@ func convertTags(tags []string) []string {
 	convertedTags := make([]string, 0, len(tags))
 	for _, tag := range tags {
 		editedTag := strings.TrimSpace(strings.ToLower(tag))
+		re := regexp.MustCompile(`[^a-zA-Z0-9_]+`)
+		editedTag = re.ReplaceAllString(editedTag, "")
 		convertedTags = append(convertedTags, editedTag)
 	}
 	return convertedTags
